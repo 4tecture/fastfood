@@ -30,11 +30,8 @@ public partial class AddItemActivity : WorkflowActivity<AddItemEvent, Order>
             var existingItem = order.Items?.FirstOrDefault(i => i.ProductId == input.Item.ProductId);
             if (existingItem != null)
             {
-                // Update the quantity of the existing item
-                existingItem.Quantity += input.Item.Quantity;
-                await _orderStorage.UpdateOrder(order);
-                await _daprClient.PublishEventAsync(FastFoodConstants.PubSubName, FastFoodConstants.EventNames.OrderUpdated, order.ToDto());
-                LogUpdatedItemQuantity(context.InstanceId, order.Id, input.Item.ProductId, existingItem.Quantity);
+                // item already exists, idempotent operation
+                return order;
             }
             else
             {

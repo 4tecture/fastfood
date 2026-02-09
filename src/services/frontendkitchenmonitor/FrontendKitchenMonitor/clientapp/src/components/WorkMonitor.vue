@@ -11,7 +11,7 @@ onMounted(async () => {
 
 // Presentational projection with items sorted: unfinished first, finished at the bottom
 const pendingOrders = computed(() => ks.pendingOrders.map(x => {
-  const items = (x.items?.map(y => ({ id: y.id, name: y.productDescription, quantity: y.quantity, state: y.state })) ?? [])
+  const items = (x.items?.map(y => ({ id: y.id, name: y.productDescription, state: y.state })) ?? [])
     .slice()
     .sort((a, b) => {
       const aFinished = a.state === 'Finished'
@@ -51,7 +51,6 @@ async function finishOrderItem(itemId) {
             :data-order-ref="order.name.toLowerCase()"
             :data-product-name="item.name">
             <span>
-              <span :data-testid="`item-quantity-${item.id}`">{{ item.quantity }}</span>× 
               <span :data-testid="`item-name-${item.id}`">{{ item.name }}</span>
             </span>
             <div class="space-x-2">

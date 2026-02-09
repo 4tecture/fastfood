@@ -252,53 +252,6 @@ public class OrderProcessingServiceStateTests
     }
 
     [Fact]
-    public async Task AddItem_ExistingProductId_IncreasesQuantity()
-    {
-        // Arrange
-        var orderId = Guid.NewGuid();
-        var productId = Guid.NewGuid();
-        var existingItem = new OrderItem { Id = Guid.NewGuid(), ProductId = productId, Quantity = 2 };
-        var order = new Order 
-        { 
-            Id = orderId, 
-            State = OrderState.Creating, 
-            Items = new List<OrderItem> { existingItem } 
-        };
-        var newItem = new OrderItem { Id = Guid.NewGuid(), ProductId = productId, Quantity = 3 };
-        
-        _daprClientMock.Setup(m => m.GetStateAsync<Order>(
-            FastFoodConstants.StateStoreName, 
-            $"OrderProcessing-{orderId}", 
-            It.IsAny<ConsistencyMode?>(), 
-            It.IsAny<IReadOnlyDictionary<string, string>>(), 
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(order);
-
-        _daprClientMock.Setup(m => m.SaveStateAsync(
-            FastFoodConstants.StateStoreName, 
-            $"OrderProcessing-{orderId}", 
-            It.IsAny<Order>(), 
-            It.IsAny<StateOptions>(), 
-            It.IsAny<IReadOnlyDictionary<string, string>>(), 
-            It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        _daprClientMock.Setup(m => m.PublishEventAsync(
-            FastFoodConstants.PubSubName, 
-            FastFoodConstants.EventNames.OrderUpdated, 
-            It.IsAny<OrderDto>(), 
-            It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        await _service.AddItem(orderId, newItem);
-
-        // Assert
-        Assert.Single(order.Items);
-        Assert.Equal(5, existingItem.Quantity);
-    }
-
-    [Fact]
     public async Task RemoveItem_ExistingItem_RemovesItem()
     {
         // Arrange
