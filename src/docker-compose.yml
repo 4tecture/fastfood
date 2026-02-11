@@ -19,7 +19,7 @@ services:
       - Observability__SamplerType=AlwaysOnSampler
       - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
     env_file:
-      - $HOME/.fastfoodtestenv/financeservice.env
+      - ../infrastructure-dev/financeservice.env
     networks:
       - fastfoodnet
 
