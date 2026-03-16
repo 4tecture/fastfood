@@ -13,11 +13,15 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001  
-      - Observability__UseTracingExporter=otlp
-      - Observability__UseMetricsExporter=otlp
-      - Observability__UseLogExporter=OtlpAndAnsiConsole
-      - Observability__SamplerType=AlwaysOnSampler
-      - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      # - Observability__UseTracingExporter=otlp
+      # - Observability__UseMetricsExporter=otlp
+      # - Observability__UseLogExporter=OtlpAndAnsiConsole
+      # - Observability__SamplerType=AlwaysOnSampler
+      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      - Observability__UseTracingExporter=none
+      - Observability__UseMetricsExporter=none
+      - Observability__UseLogExporter=AnsiConsole
+      - Observability__SamplerType=AlwaysOffSampler
     env_file:
       - $HOME/.fastfoodtestenv/financeservice.env
     networks:
@@ -67,11 +71,15 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      - Observability__UseTracingExporter=otlp
-      - Observability__UseMetricsExporter=otlp
-      - Observability__UseLogExporter=OtlpAndAnsiConsole
-      - Observability__SamplerType=AlwaysOnSampler
-      - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      # - Observability__UseTracingExporter=otlp
+      # - Observability__UseMetricsExporter=otlp
+      # - Observability__UseLogExporter=OtlpAndAnsiConsole
+      # - Observability__SamplerType=AlwaysOnSampler
+      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      - Observability__UseTracingExporter=none
+      - Observability__UseMetricsExporter=none
+      - Observability__UseLogExporter=AnsiConsole
+      - Observability__SamplerType=AlwaysOffSampler
     networks:
       - fastfoodnet
 
@@ -119,11 +127,15 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      - Observability__UseTracingExporter=otlp
-      - Observability__UseMetricsExporter=otlp
-      - Observability__UseLogExporter=OtlpAndAnsiConsole
-      - Observability__SamplerType=AlwaysOnSampler
-      - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      # - Observability__UseTracingExporter=otlp
+      # - Observability__UseMetricsExporter=otlp
+      # - Observability__UseLogExporter=OtlpAndAnsiConsole
+      # - Observability__SamplerType=AlwaysOnSampler
+      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      - Observability__UseTracingExporter=none
+      - Observability__UseMetricsExporter=none
+      - Observability__UseLogExporter=AnsiConsole
+      - Observability__SamplerType=AlwaysOffSampler
     networks:
       - fastfoodnet
 
@@ -171,11 +183,15 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      - Observability__UseTracingExporter=otlp
-      - Observability__UseMetricsExporter=otlp
-      - Observability__UseLogExporter=OtlpAndAnsiConsole
-      - Observability__SamplerType=AlwaysOnSampler
-      - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      # - Observability__UseTracingExporter=otlp
+      # - Observability__UseMetricsExporter=otlp
+      # - Observability__UseLogExporter=OtlpAndAnsiConsole
+      # - Observability__SamplerType=AlwaysOnSampler
+      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      - Observability__UseTracingExporter=none
+      - Observability__UseMetricsExporter=none
+      - Observability__UseLogExporter=AnsiConsole
+      - Observability__SamplerType=AlwaysOffSampler
     networks:
       - fastfoodnet
 
@@ -223,11 +239,15 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      - Observability__UseTracingExporter=otlp
-      - Observability__UseMetricsExporter=otlp
-      - Observability__UseLogExporter=OtlpAndAnsiConsole
-      - Observability__SamplerType=AlwaysOnSampler
-      - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      # - Observability__UseTracingExporter=otlp
+      # - Observability__UseMetricsExporter=otlp
+      # - Observability__UseLogExporter=OtlpAndAnsiConsole
+      # - Observability__SamplerType=AlwaysOnSampler
+      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      - Observability__UseTracingExporter=none
+      - Observability__UseMetricsExporter=none
+      - Observability__UseLogExporter=AnsiConsole
+      - Observability__SamplerType=AlwaysOffSampler
     networks:
       - fastfoodnet
     labels:
@@ -280,11 +300,15 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      - Observability__UseTracingExporter=otlp
-      - Observability__UseMetricsExporter=otlp
-      - Observability__UseLogExporter=OtlpAndAnsiConsole
-      - Observability__SamplerType=AlwaysOnSampler
-      - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      # - Observability__UseTracingExporter=otlp
+      # - Observability__UseMetricsExporter=otlp
+      # - Observability__UseLogExporter=OtlpAndAnsiConsole
+      # - Observability__SamplerType=AlwaysOnSampler
+      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      - Observability__UseTracingExporter=none
+      - Observability__UseMetricsExporter=none
+      - Observability__UseLogExporter=AnsiConsole
+      - Observability__SamplerType=AlwaysOffSampler
     networks:
       - fastfoodnet
     labels:
@@ -337,11 +361,15 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      - Observability__UseTracingExporter=otlp
-      - Observability__UseMetricsExporter=otlp
-      - Observability__UseLogExporter=OtlpAndAnsiConsole
-      - Observability__SamplerType=AlwaysOnSampler
-      - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      # - Observability__UseTracingExporter=otlp
+      # - Observability__UseMetricsExporter=otlp
+      # - Observability__UseLogExporter=OtlpAndAnsiConsole
+      # - Observability__SamplerType=AlwaysOnSampler
+      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      - Observability__UseTracingExporter=none
+      - Observability__UseMetricsExporter=none
+      - Observability__UseLogExporter=AnsiConsole
+      - Observability__SamplerType=AlwaysOffSampler
     networks:
       - fastfoodnet
     labels:
@@ -470,24 +498,26 @@ services:
     networks:
       - fastfoodnet
 
-  sqldb:
-    container_name: sqldb-fastfood
-    hostname: sqldb-fastfood
-    image: "mcr.microsoft.com/mssql/server:2022-latest"
-#    image: "mcr.microsoft.com/azure-sql-edge:latest"
-    ports:
-      - '1433:1433'
-#    user: '0:0'
-    environment:
-      - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=welcome!123
-#    volumes:
-#      - '../infrastructure-dev/mssql/data:/var/opt/mssql/data'
-#      - '../infrastructure-dev/mssql/backup:/var/opt/mssql/backup'
-    networks:
-      fastfoodnet:
-        aliases:
-          - sqldb-fastfood
+# Disabled for Copilot HOL (disable the feature flag in FinanceService's appsettings.json and uncomment this section to use a real SQL database instead of the in-memory one)
+
+#   sqldb:
+#     container_name: sqldb-fastfood
+#     hostname: sqldb-fastfood
+#     image: "mcr.microsoft.com/mssql/server:2022-latest"
+# #    image: "mcr.microsoft.com/azure-sql-edge:latest"
+#     ports:
+#       - '1433:1433'
+# #    user: '0:0'
+#     environment:
+#       - ACCEPT_EULA=Y
+#       - MSSQL_SA_PASSWORD=welcome!123
+# #    volumes:
+# #      - '../infrastructure-dev/mssql/data:/var/opt/mssql/data'
+# #      - '../infrastructure-dev/mssql/backup:/var/opt/mssql/backup'
+#     networks:
+#       fastfoodnet:
+#         aliases:
+#           - sqldb-fastfood
     
 
   proxy:
@@ -527,114 +557,116 @@ services:
           - grafana.localtest.me
           - jaeger.localtest.me
 
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.135.0
-    container_name: otel-collector
-    deploy:
-      resources:
-        limits:
-          memory: 125M
-    restart: unless-stopped
-    command: 
-      - "--config=/etc/otel-collector-config.yml"
-      #- "--feature-gates=-component.UseLocalHostAsDefaultHost"
-    volumes:
-      - ../infrastructure-dev/otel-collector/otel-collector-config.yml:/etc/otel-collector-config.yml
-    ports:
-      - "4317:4317"          # OTLP over gRPC receiver
-      - "4318:4318"          # OTLP over HTTP receiver
-      - "9464:9464"          # Prometheus exporter
-      - "8888:8888"          # metrics endpoint
-    depends_on:
-      - jaeger
-      - prometheus
-      - loki
-    networks:
-      - fastfoodnet
+  # Observability is disabled for the Copilot HOL. Uncomment the sections below and enable the OTLP exporters in the services to use the full observability stack.
 
-  grafana:
-    image: grafana/grafana:12.1
-    container_name: grafana
-    deploy:
-      resources:
-        limits:
-          memory: 75M
-    volumes:
-      - ../infrastructure-dev/grafana/grafana.ini:/etc/grafana/grafana.ini
-      - ../infrastructure-dev/grafana/provisioning/:/etc/grafana/provisioning/
-    ports:
-      - "3000:3000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.localtest.me`)"
-      - "traefik.http.routers.grafana.entrypoints=websecure"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-    networks:
-      - fastfoodnet
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib:0.135.0
+  #   container_name: otel-collector
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 125M
+  #   restart: unless-stopped
+  #   command: 
+  #     - "--config=/etc/otel-collector-config.yml"
+  #     #- "--feature-gates=-component.UseLocalHostAsDefaultHost"
+  #   volumes:
+  #     - ../infrastructure-dev/otel-collector/otel-collector-config.yml:/etc/otel-collector-config.yml
+  #   ports:
+  #     - "4317:4317"          # OTLP over gRPC receiver
+  #     - "4318:4318"          # OTLP over HTTP receiver
+  #     - "9464:9464"          # Prometheus exporter
+  #     - "8888:8888"          # metrics endpoint
+  #   depends_on:
+  #     - jaeger
+  #     - prometheus
+  #     - loki
+  #   networks:
+  #     - fastfoodnet
 
-  jaeger:
-    image: jaegertracing/all-in-one:1.73.0
-    container_name: jaeger
-    command:
-      - "--memory.max-traces"
-      - "10000"
-      - "--query.base-path"
-      - "/jaeger/ui"
-      - "--prometheus.server-url"
-      - "http://prometheus:9090"
-    deploy:
-      resources:
-        limits:
-          memory: 300M
-    restart: unless-stopped
-    ports:
-      - "16686:16686"         # Jaeger UI
-      - "4317"                # OTLP gRPC default port
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - METRICS_STORAGE_TYPE=prometheus
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.jaeger.rule=Host(`jaeger.localtest.me`)"
-      - "traefik.http.routers.jaeger.entrypoints=websecure"
-      - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
-    networks:
-      - fastfoodnet
+  # grafana:
+  #   image: grafana/grafana:12.1
+  #   container_name: grafana
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 75M
+  #   volumes:
+  #     - ../infrastructure-dev/grafana/grafana.ini:/etc/grafana/grafana.ini
+  #     - ../infrastructure-dev/grafana/provisioning/:/etc/grafana/provisioning/
+  #   ports:
+  #     - "3000:3000"
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.grafana.rule=Host(`grafana.localtest.me`)"
+  #     - "traefik.http.routers.grafana.entrypoints=websecure"
+  #     - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+  #   networks:
+  #     - fastfoodnet
 
-  loki:
-    image: grafana/loki:3.5.5
-    container_name: loki
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/loki-config.yaml
-    volumes:
-    - ../infrastructure-dev/loki/loki-config.yaml:/etc/loki/loki-config.yaml
-    networks:
-      - fastfoodnet
+  # jaeger:
+  #   image: jaegertracing/all-in-one:1.73.0
+  #   container_name: jaeger
+  #   command:
+  #     - "--memory.max-traces"
+  #     - "10000"
+  #     - "--query.base-path"
+  #     - "/jaeger/ui"
+  #     - "--prometheus.server-url"
+  #     - "http://prometheus:9090"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 300M
+  #   restart: unless-stopped
+  #   ports:
+  #     - "16686:16686"         # Jaeger UI
+  #     - "4317"                # OTLP gRPC default port
+  #   environment:
+  #     - COLLECTOR_OTLP_ENABLED=true
+  #     - METRICS_STORAGE_TYPE=prometheus
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.jaeger.rule=Host(`jaeger.localtest.me`)"
+  #     - "traefik.http.routers.jaeger.entrypoints=websecure"
+  #     - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
+  #   networks:
+  #     - fastfoodnet
 
-  prometheus:
-    image: quay.io/prometheus/prometheus:v3.5.0
-    container_name: prometheus
-    command:
-      - --web.console.templates=/etc/prometheus/consoles
-      - --web.console.libraries=/etc/prometheus/console_libraries
-      - --storage.tsdb.retention.time=1h
-      - --config.file=/etc/prometheus/prometheus.yaml
-      - --storage.tsdb.path=/prometheus
-      - --web.enable-lifecycle
-      - --enable-feature=exemplar-storage
-      - --enable-feature=native-histograms
-      - --web.enable-otlp-receiver
-    volumes:
-      - ../infrastructure-dev/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml
-    deploy:
-      resources:
-        limits:
-          memory: 300M
-    ports:
-      - "9090:9090"
-    networks:
-      - fastfoodnet
+  # loki:
+  #   image: grafana/loki:3.5.5
+  #   container_name: loki
+  #   ports:
+  #     - "3100:3100"
+  #   command: -config.file=/etc/loki/loki-config.yaml
+  #   volumes:
+  #   - ../infrastructure-dev/loki/loki-config.yaml:/etc/loki/loki-config.yaml
+  #   networks:
+  #     - fastfoodnet
+
+  # prometheus:
+  #   image: quay.io/prometheus/prometheus:v3.5.0
+  #   container_name: prometheus
+  #   command:
+  #     - --web.console.templates=/etc/prometheus/consoles
+  #     - --web.console.libraries=/etc/prometheus/console_libraries
+  #     - --storage.tsdb.retention.time=1h
+  #     - --config.file=/etc/prometheus/prometheus.yaml
+  #     - --storage.tsdb.path=/prometheus
+  #     - --web.enable-lifecycle
+  #     - --enable-feature=exemplar-storage
+  #     - --enable-feature=native-histograms
+  #     - --web.enable-otlp-receiver
+  #   volumes:
+  #     - ../infrastructure-dev/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 300M
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - fastfoodnet
 
 networks:
   fastfoodnet:

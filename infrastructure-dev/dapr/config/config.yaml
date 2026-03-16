@@ -8,8 +8,8 @@ spec:
     enabled: true
     workloadCertTTL: "24h"
     allowedClockSkew: "15m"
-  tracing:
-    samplingRate: "1"
-    otel:
-      endpointAddress: "otel-collector:4317"
+  # tracing:
+  #   samplingRate: "1"
+  #   otel:
+  #     endpointAddress: "otel-collector:4317"
   

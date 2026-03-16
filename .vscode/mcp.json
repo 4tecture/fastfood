@@ -1,16 +1,16 @@
 {
     "servers": {
-        "fastfoodmcp": {
-            "type": "stdio",
-            "command": "docker",
-            "args": [
-                "run",
-                "-i",
-                "--rm",
-                "fastfoodmcp"
-            ],
-            "env": {}
-        },
+        // "fastfoodmcp": {
+        //     "type": "stdio",
+        //     "command": "docker",
+        //     "args": [
+        //         "run",
+        //         "-i",
+        //         "--rm",
+        //         "fastfoodmcp"
+        //     ],
+        //     "env": {}
+        // },
     },
     "inputs": []
 }
