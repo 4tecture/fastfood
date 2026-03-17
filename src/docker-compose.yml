@@ -23,7 +23,7 @@ services:
       - Observability__UseLogExporter=AnsiConsole
       - Observability__SamplerType=AlwaysOffSampler
     env_file:
-      - $HOME/.fastfoodtestenv/financeservice.env
+      - ../infrastructure-dev/financeservice.env
     networks:
       - fastfoodnet
 
