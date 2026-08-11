@@ -18,4 +18,7 @@ variables:
 - name: databaseName
   value: 'FastFoodFinance'
 - name: connectionString
-  value: 'Server=$(sqlServerName).database.windows.net,1433;Database=$(databaseName);TrustServerCertificate=True;'
+  # Finance injects an Azure SQL access token through its authentication
+  # provider/interceptor. Keep authentication out of the connection string so
+  # SqlClient is not asked to use two mutually exclusive mechanisms.
+  value: 'Server=$(sqlServerName).database.windows.net,1433;Database=$(databaseName);Encrypt=True;TrustServerCertificate=False;'

@@ -10,8 +10,12 @@ spec:
     value: {{ .Values.dapr.redisHost | quote }}
   - name: redisPassword
     secretKeyRef:
-      name: {{ template "daprenv.fullname" . }}-dapr-secrets
+      name: {{ .Values.dapr.existingRedisSecret | default (printf "%s-dapr-secrets" (include "daprenv.fullname" .)) }}
       key: redis-password
+  - name: redisDB
+    value: {{ .Values.dapr.redisDB | default 0 | quote }}
+  - name: keyPrefix
+    value: "namespace"
   - name: actorStateStore
     value: "true"
 scopes:

@@ -2,6 +2,9 @@ dapr:
   redisHost: ""
   redisPassword: ""
   redisDB: 0
+  existingRedisSecret: ""
+  createRedisSecret: true
 
 demosecret:
+  enabled: false
   samplevalue: "Hello World from k8s"

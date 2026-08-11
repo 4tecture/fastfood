@@ -1,5 +1,5 @@
 # ----- Build Stage -----
-FROM mcr.microsoft.com/dotnet/sdk:9.0.300 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
 WORKDIR /src
 
 # Install additional tools for AOT compilation
@@ -10,16 +10,10 @@ WORKDIR /src
 COPY . .
 
 # Restore dependencies
-RUN dotnet restore "FinanceService/FinanceService.csproj"
+RUN dotnet restore "services/finance/FinanceService/FinanceService.csproj" --locked-mode
 
 # Standard publish (non-optimized)
-RUN dotnet publish "FinanceService/FinanceService.csproj" -c Release -o /app/publish
-
-# Optimized publish with trimming
-#RUN dotnet publish "FinanceService/FinanceService.csproj" -c Release -o /app/publish_optimized /p:PublishTrimmed=True /p:SelfContained=true
-
-# Optimized publish with AOT
-# RUN dotnet publish "FinanceService/FinanceService.csproj" -c Release -o /app/publish_aot -r linux-arm64 /p:PublishAot=True /p:StaticExecutable=True
+RUN dotnet publish "services/finance/FinanceService/FinanceService.csproj" -c Release -o /app/publish --no-restore
 
 RUN find /app/publish -type d -exec chmod 755 {} \; && \
     find /app/publish -type f -exec chmod 644 {} \;
@@ -27,47 +21,33 @@ RUN find /app/publish -type d -exec chmod 755 {} \; && \
 # ----- Runtime Targets -----
 
 # 1. Standard runtime image using the default ASP.NET runtime
-FROM mcr.microsoft.com/dotnet/aspnet:9.0.3 AS base_standard
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10 AS base_standard
 WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "FinanceService.dll"]
+USER $APP_UID
 
-# 2. Optimized build on the default ASP.NET runtime image
-# FROM mcr.microsoft.com/dotnet/runtime-deps:9.0.2 AS base_optimized
-# WORKDIR /app
-# COPY --from=build /app/publish_optimized .
-# EXPOSE 8080
-# ENTRYPOINT ["./FinanceService"]
-
-# 3. Optimized build on the Alpine-based ASP.NET runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0.3-alpine3.21 AS base_alpine
+# 2. Framework-dependent build on the Alpine-based ASP.NET runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10-alpine3.24 AS base_alpine
 WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "FinanceService.dll"]
+USER $APP_UID
 
-# 4. Optimized build on the chiseled ASP.NET runtime image (minimal footprint)
-FROM mcr.microsoft.com/dotnet/aspnet:9.0.3-noble-chiseled AS base_chiseled
+# 3. Framework-dependent build on the chiseled ASP.NET runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10-noble-chiseled AS base_chiseled
 WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "FinanceService.dll"]
+USER $APP_UID
 
-# 5. Optimized build on the chiseled ASP.NET runtime image with icu or tzdata (minimal footprint)
-FROM mcr.microsoft.com/dotnet/aspnet:9.0.3-noble-chiseled-extra AS base_chiseled_extra
+# 4. Chiseled-extra includes ICU and time-zone data for globalization support
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10-noble-chiseled-extra AS base_chiseled_extra
 WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "FinanceService.dll"]
-
-# 6. Optimized AOT build on apline
-# FROM alpine:3.21 AS base_alpine_aot
-# ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
-# WORKDIR /app
-# COPY --from=build /app/publish_aot/FinanceService .
-# EXPOSE 8080
-# ENTRYPOINT ["./FinanceService"]
-
-
-
+USER $APP_UID

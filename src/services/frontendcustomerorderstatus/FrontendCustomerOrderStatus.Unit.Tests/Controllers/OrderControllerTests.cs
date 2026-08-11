@@ -1,5 +1,5 @@
-using Dapr.Client;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using FrontendCustomerOrderStatus.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -12,13 +12,13 @@ namespace FrontendCustomerOrderStatus.Unit.Tests.Controllers;
 
 public class OrderControllerTests
 {
-    private readonly Mock<DaprClient> _daprClientMock;
+    private readonly Mock<IDaprServiceInvoker> _daprClientMock;
     private readonly Mock<ILogger<OrderController>> _loggerMock;
     private readonly OrderController _controller;
 
     public OrderControllerTests()
     {
-        _daprClientMock = new Mock<DaprClient>();
+        _daprClientMock = new Mock<IDaprServiceInvoker>();
         _loggerMock = new Mock<ILogger<OrderController>>();
         _controller = new OrderController(_daprClientMock.Object, _loggerMock.Object);
     }

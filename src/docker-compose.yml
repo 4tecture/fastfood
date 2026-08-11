@@ -9,23 +9,26 @@ services:
       context: .
       dockerfile: services/finance/FinanceService/Dockerfile
     ports:
-      - "8901:8080"
+      - "127.0.0.1:8901:8080"
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001  
+      - Database__ApplySchemaOnStartup=true
+      # The fallback is intentionally workstation/demo-only so that ordinary
+      # `docker compose up`, `ps`, and `down` remain usable. start-compose.*
+      # overrides it with a randomly generated value from ignored src/.env.
+      - ConnectionStrings__FinanceDatabase=Server=sqldb-fastfood;Database=Finance;User Id=sa;Password=${MSSQL_SA_PASSWORD:-FastFood-LocalDemo_2026!};Encrypt=True;TrustServerCertificate=True
       - Observability__UseTracingExporter=otlp
       - Observability__UseMetricsExporter=otlp
       - Observability__UseLogExporter=OtlpAndAnsiConsole
       - Observability__SamplerType=AlwaysOnSampler
       - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
-    env_file:
-      - $HOME/.fastfoodtestenv/financeservice.env
     networks:
       - fastfoodnet
 
   financeservice-dapr:
     container_name: financeservice-dapr
-    image: "daprio/daprd:1.16.0"
+    image: "daprio/daprd:1.18.2"
     command: [ "./daprd",
                "--app-id", "financeservice",
                "--app-port", "8080",
@@ -40,7 +43,8 @@ services:
       - "../infrastructure-dev/dapr/resources/:/resources"
       - "../infrastructure-dev/dapr/config/:/config"
     env_file:
-      - ../infrastructure-dev/dapr/certs/mtls.env
+      - path: ../infrastructure-dev/dapr/certs/generated/mtls.env
+        required: false
     environment:
       - OTEL_PROPAGATORS=tracecontext,b3
     depends_on:
@@ -63,7 +67,7 @@ services:
       context: .
       dockerfile: services/kitchen/KitchenService/Dockerfile
     ports:
-      - "8701:8080"
+      - "127.0.0.1:8701:8080"
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
@@ -77,7 +81,7 @@ services:
 
   kitchenservice-dapr:
     container_name: kitchenservice-dapr
-    image: "daprio/daprd:1.16.0"
+    image: "daprio/daprd:1.18.2"
     command: ["./daprd",
               "--app-id", "kitchenservice",
               "--app-port", "8080",
@@ -92,7 +96,8 @@ services:
       - "../infrastructure-dev/dapr/resources/:/resources"
       - "../infrastructure-dev/dapr/config/:/config"
     env_file:
-      - ../infrastructure-dev/dapr/certs/mtls.env
+      - path: ../infrastructure-dev/dapr/certs/generated/mtls.env
+        required: false
     environment:
       - OTEL_PROPAGATORS=tracecontext,b3
     depends_on:
@@ -115,10 +120,14 @@ services:
       context: .
       dockerfile: services/order/OrderService/Dockerfile
     ports:
-      - "8601:8080"
+      - "127.0.0.1:8601:8080"
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
+      # Explicitly enable only the harmless local sample used by the secret-store lab.
+      # Kubernetes/Helm keeps the endpoint disabled by default.
+      - Demos__SecretEndpoint__Enabled=true
+      - Demos__SecretEndpoint__AllowedKeys__0=demo.sample
       - Observability__UseTracingExporter=otlp
       - Observability__UseMetricsExporter=otlp
       - Observability__UseLogExporter=OtlpAndAnsiConsole
@@ -129,7 +138,7 @@ services:
 
   orderservice-dapr:
     container_name: orderservice-dapr
-    image: "daprio/daprd:1.16.0"
+    image: "daprio/daprd:1.18.2"
     command: ["./daprd",
               "--app-id", "orderservice",
               "--app-port", "8080",
@@ -144,7 +153,8 @@ services:
       - "../infrastructure-dev/dapr/resources/:/resources"
       - "../infrastructure-dev/dapr/config/:/config"
     env_file:
-      - ../infrastructure-dev/dapr/certs/mtls.env
+      - path: ../infrastructure-dev/dapr/certs/generated/mtls.env
+        required: false
     environment:
       - OTEL_PROPAGATORS=tracecontext,b3
     depends_on:
@@ -167,7 +177,7 @@ services:
       context: .
       dockerfile: services/order/OrderService.Actors/Dockerfile
     ports:
-      - "8651:8080"
+      - "127.0.0.1:8651:8080"
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
@@ -181,7 +191,7 @@ services:
 
   orderserviceactors-dapr:
     container_name: orderserviceactors-dapr
-    image: "daprio/daprd:1.16.0"
+    image: "daprio/daprd:1.18.2"
     command: ["./daprd",
               "--app-id", "orderserviceactors",
               "--app-port", "8080",
@@ -196,7 +206,8 @@ services:
       - "../infrastructure-dev/dapr/resources/:/resources"
       - "../infrastructure-dev/dapr/config/:/config"
     env_file:
-      - ../infrastructure-dev/dapr/certs/mtls.env
+      - path: ../infrastructure-dev/dapr/certs/generated/mtls.env
+        required: false
     environment:
       - OTEL_PROPAGATORS=tracecontext,b3
     depends_on:
@@ -219,7 +230,7 @@ services:
       context: .
       dockerfile: services/frontendselfservicepos/FrontendSelfServicePos/Dockerfile
     ports:
-      - "8801:8080"
+      - "127.0.0.1:8801:8080"
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
@@ -238,7 +249,7 @@ services:
 
   frontendselfservicepos-dapr:
     container_name: frontendselfservicepos-dapr
-    image: "daprio/daprd:1.16.0"
+    image: "daprio/daprd:1.18.2"
     command: ["./daprd",
               "--app-id", "frontendselfservicepos",
               "--app-port", "8080",
@@ -253,7 +264,8 @@ services:
       - "../infrastructure-dev/dapr/resources/:/resources"
       - "../infrastructure-dev/dapr/config/:/config"
     env_file:
-      - ../infrastructure-dev/dapr/certs/mtls.env
+      - path: ../infrastructure-dev/dapr/certs/generated/mtls.env
+        required: false
     environment:
       - OTEL_PROPAGATORS=tracecontext,b3
     depends_on:
@@ -276,7 +288,7 @@ services:
       context: .
       dockerfile: services/frontendkitchenmonitor/FrontendKitchenMonitor/Dockerfile
     ports:
-      - "8802:8080"
+      - "127.0.0.1:8802:8080"
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
@@ -295,7 +307,7 @@ services:
   
   frontendkitchenmonitor-dapr:
     container_name: frontendkitchenmonitor-dapr
-    image: "daprio/daprd:1.16.0"
+    image: "daprio/daprd:1.18.2"
     command: [ "./daprd",
                "--app-id", "frontendkitchenmonitor",
                "--app-port", "8080",
@@ -310,7 +322,8 @@ services:
       - "../infrastructure-dev/dapr/resources/:/resources"
       - "../infrastructure-dev/dapr/config/:/config"
     env_file:
-      - ../infrastructure-dev/dapr/certs/mtls.env
+      - path: ../infrastructure-dev/dapr/certs/generated/mtls.env
+        required: false
     environment:
       - OTEL_PROPAGATORS=tracecontext,b3
     depends_on:
@@ -333,7 +346,7 @@ services:
       context: .
       dockerfile: services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/Dockerfile
     ports:
-      - "8803:8080"
+      - "127.0.0.1:8803:8080"
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
@@ -352,7 +365,7 @@ services:
   
   frontendcustomerorderstatus-dapr:
     container_name: frontendcustomerorderstatus-dapr
-    image: "daprio/daprd:1.16.0"
+    image: "daprio/daprd:1.18.2"
     command: [ "./daprd",
                "--app-id", "frontendcustomerorderstatus",
                "--app-port", "8080",
@@ -367,7 +380,8 @@ services:
       - "../infrastructure-dev/dapr/resources/:/resources"
       - "../infrastructure-dev/dapr/config/:/config"
     env_file:
-      - ../infrastructure-dev/dapr/certs/mtls.env
+      - path: ../infrastructure-dev/dapr/certs/generated/mtls.env
+        required: false
     environment:
       - OTEL_PROPAGATORS=tracecontext,b3
     depends_on:
@@ -385,40 +399,40 @@ services:
 
   redis:
     container_name: redis
-    image: "redis:8.2.1"
+    image: "redis:8.10.0"
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - fastfoodnet
 
   placement:
     container_name: placement
-    image: "daprio/dapr:1.16.0"
+    image: "daprio/dapr:1.18.2"
     command: ["./placement",
               "--sentry-address", "sentry:50001",
               "--tls-enabled",
               "--trust-domain", "cluster.local"]
     ports:
-      - "50005:50005"
+      - "127.0.0.1:50005:50005"
     volumes:
-      - "../infrastructure-dev/dapr/certs/:/var/run/secrets/dapr.io/tls"
+      - "../infrastructure-dev/dapr/certs/generated/:/var/run/secrets/dapr.io/tls"
     networks:
       - fastfoodnet
       
   scheduler:
-    image: "daprio/dapr:1.16.0"
+    image: "daprio/dapr:1.18.2"
     command: [ "./scheduler", 
                "--port", "50007"]
     ports:
-      - "50007:50007"
+      - "127.0.0.1:50007:50007"
     volumes:
-      - "../infrastructure-dev/dapr/certs/:/var/run/secrets/dapr.io/tls"
+      - "../infrastructure-dev/dapr/certs/generated/:/var/run/secrets/dapr.io/tls"
       - "../infrastructure-dev/dapr/data/scheduler:/data"
     networks:
       - fastfoodnet
         
   sentry:
-    image: "daprio/sentry:1.16.0"
+    image: "daprio/sentry:1.18.2"
     container_name: sentry
     command: ["./sentry",
               "--issuer-credentials", "/certs",
@@ -427,19 +441,19 @@ services:
               "--log-level", "info",
     ]
     volumes:
-      - "../infrastructure-dev/dapr/certs/:/certs"
+      - "../infrastructure-dev/dapr/certs/generated/:/certs"
       - "../infrastructure-dev/dapr/config/:/config"
     ports:
-      - "8082:8080"
+      - "127.0.0.1:8082:8080"
     networks:
       - fastfoodnet
 
   rabbitmq:
     container_name: rabbitmq
-    image: "rabbitmq:4.1.4-management"
+    image: "rabbitmq:4.3.4-management"
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     networks:
       - fastfoodnet
     healthcheck:
@@ -456,12 +470,12 @@ services:
                "-config-path=/home/nonroot/configuration",
                "-docker-compose-path=/home/nonroot/docker-compose.yml" ]
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - "../infrastructure-dev/dapr/resources/:/home/nonroot/components"
       - "../infrastructure-dev/dapr/config/:/home/nonroot/configuration"
       - "./docker-compose.yml:/home/nonroot/docker-compose.yml"
-      - "../infrastructure-dev/dapr/certs:/app/dapr/certs"
+      - "../infrastructure-dev/dapr/certs/generated:/app/dapr/certs"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.daprdashboard.rule=Host(`daprdashboard.localtest.me`)"
@@ -473,14 +487,14 @@ services:
   sqldb:
     container_name: sqldb-fastfood
     hostname: sqldb-fastfood
-    image: "mcr.microsoft.com/mssql/server:2022-latest"
-#    image: "mcr.microsoft.com/azure-sql-edge:latest"
+    image: "mcr.microsoft.com/mssql/server:2025-CU7-ubuntu-24.04"
+#    image: "mcr.microsoft.com/azure-sql-edge:<approved-version>"
     ports:
-      - '1433:1433'
+      - '127.0.0.1:1433:1433'
 #    user: '0:0'
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=welcome!123
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD:-FastFood-LocalDemo_2026!}
 #    volumes:
 #      - '../infrastructure-dev/mssql/data:/var/opt/mssql/data'
 #      - '../infrastructure-dev/mssql/backup:/var/opt/mssql/backup'
@@ -490,13 +504,29 @@ services:
           - sqldb-fastfood
     
 
+  docker-socket-proxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
+    environment:
+      CONTAINERS: 1
+      EVENTS: 1
+      INFO: 1
+      NETWORKS: 1
+      PING: 1
+      VERSION: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - fastfoodnet
+
   proxy:
     container_name: proxy
-    image: traefik:v3.6.7
+    image: traefik:v3.7.10
     command:
       - "--api.insecure=true" # Traefik dashboard (only for dev)
       - "--log.level=INFO"
       - "--providers.docker=true"
+      - "--providers.docker.endpoint=tcp://docker-socket-proxy:2375"
       - "--providers.docker.network=fastfoodnet"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.file.filename=/config/traefik.yml"
@@ -510,11 +540,10 @@ services:
       - "--accesslog.filepath=/var/log/traefik/access.log"
       - "--accesslog.format=json"
     ports:
-      - "80:80"   # HTTP
-      - "443:443" # HTTPS
-      - "8081:8080" # Traefik Dashboard
+      - "127.0.0.1:80:80"   # HTTP
+      - "127.0.0.1:443:443" # HTTPS
+      - "127.0.0.1:8081:8080" # Traefik Dashboard
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "../infrastructure-dev/proxy/certs:/certs" # Mounting the directory containing the self-signed certs
       - "../infrastructure-dev/proxy/traefikconfig:/config"
     networks:
@@ -528,7 +557,7 @@ services:
           - jaeger.localtest.me
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.135.0
+    image: otel/opentelemetry-collector-contrib:0.158.0
     container_name: otel-collector
     deploy:
       resources:
@@ -541,10 +570,10 @@ services:
     volumes:
       - ../infrastructure-dev/otel-collector/otel-collector-config.yml:/etc/otel-collector-config.yml
     ports:
-      - "4317:4317"          # OTLP over gRPC receiver
-      - "4318:4318"          # OTLP over HTTP receiver
-      - "9464:9464"          # Prometheus exporter
-      - "8888:8888"          # metrics endpoint
+      - "127.0.0.1:4317:4317" # OTLP over gRPC receiver
+      - "127.0.0.1:4318:4318" # OTLP over HTTP receiver
+      - "127.0.0.1:9464:9464" # Prometheus exporter
+      - "127.0.0.1:8888:8888" # metrics endpoint
     depends_on:
       - jaeger
       - prometheus
@@ -553,17 +582,17 @@ services:
       - fastfoodnet
 
   grafana:
-    image: grafana/grafana:12.1
+    image: grafana/grafana:13.1.3
     container_name: grafana
     deploy:
       resources:
         limits:
-          memory: 75M
+          memory: 512M
     volumes:
       - ../infrastructure-dev/grafana/grafana.ini:/etc/grafana/grafana.ini
       - ../infrastructure-dev/grafana/provisioning/:/etc/grafana/provisioning/
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.rule=Host(`grafana.localtest.me`)"
@@ -573,26 +602,26 @@ services:
       - fastfoodnet
 
   jaeger:
-    image: jaegertracing/all-in-one:1.73.0
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.20.0
     container_name: jaeger
     command:
-      - "--memory.max-traces"
-      - "10000"
-      - "--query.base-path"
-      - "/jaeger/ui"
-      - "--prometheus.server-url"
-      - "http://prometheus:9090"
+      - "--set=extensions.jaeger_storage.backends.some_storage.memory.max_traces=10000"
+      - "--set=extensions.jaeger_storage.metric_backends.some_metrics_storage.prometheus.endpoint=http://prometheus:9090"
+      - "--set=extensions.jaeger_storage.metric_backends.some_metrics_storage.prometheus.normalize_calls=true"
+      - "--set=extensions.jaeger_storage.metric_backends.some_metrics_storage.prometheus.normalize_duration=true"
+      - "--set=extensions.jaeger_query.storage.metrics=some_metrics_storage"
+      - "--set=extensions.jaeger_query.base_path=/jaeger/ui"
     deploy:
       resources:
         limits:
           memory: 300M
     restart: unless-stopped
     ports:
-      - "16686:16686"         # Jaeger UI
-      - "4317"                # OTLP gRPC default port
+      - "127.0.0.1:16686:16686" # Jaeger UI
+    expose:
+      - "4317"                  # OTLP gRPC inside the Compose network
     environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - METRICS_STORAGE_TYPE=prometheus
+      - JAEGER_LISTEN_HOST=0.0.0.0
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jaeger.rule=Host(`jaeger.localtest.me`)"
@@ -602,10 +631,10 @@ services:
       - fastfoodnet
 
   loki:
-    image: grafana/loki:3.5.5
+    image: grafana/loki:3.7.6
     container_name: loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     command: -config.file=/etc/loki/loki-config.yaml
     volumes:
     - ../infrastructure-dev/loki/loki-config.yaml:/etc/loki/loki-config.yaml
@@ -613,7 +642,7 @@ services:
       - fastfoodnet
 
   prometheus:
-    image: quay.io/prometheus/prometheus:v3.5.0
+    image: quay.io/prometheus/prometheus:v3.13.2
     container_name: prometheus
     command:
       - --web.console.templates=/etc/prometheus/consoles
@@ -632,7 +661,7 @@ services:
         limits:
           memory: 300M
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     networks:
       - fastfoodnet
 

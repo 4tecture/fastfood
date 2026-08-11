@@ -1,0 +1,102 @@
+parameters:
+  - name: kubernetesDeploymentServiceConnection
+    type: string
+  - name: pullRequestId
+    type: string
+
+steps:
+  - bash: |
+      set -euo pipefail
+
+      FASTFOOD_PR_ID='${{ parameters.pullRequestId }}'
+      if [[ ! "$FASTFOOD_PR_ID" =~ ^[1-9][0-9]*$ ]]; then
+        echo "Invalid or missing pull request id: $FASTFOOD_PR_ID" >&2
+        exit 1
+      fi
+
+      # Redis databases 0-2 are reserved for production/staging/other shared
+      # environments. PRs deterministically use one of the remaining 13 DBs.
+      FASTFOOD_REDIS_DB=$(( (FASTFOOD_PR_ID % 13) + 3 ))
+      echo "PR $FASTFOOD_PR_ID uses Redis DB $FASTFOOD_REDIS_DB."
+      echo "##vso[task.setvariable variable=redisDB]$FASTFOOD_REDIS_DB"
+    displayName: 'Validate PR id and select Redis DB'
+
+  # Applying instead of creating makes the operation safe when the initializer
+  # and one or more service CD pipelines start concurrently for the same PR.
+  - task: Kubernetes@1
+    displayName: 'Bootstrap PR namespace pr-${{ parameters.pullRequestId }}'
+    inputs:
+      connectionType: 'Kubernetes Service Connection'
+      kubernetesServiceEndpoint: ${{ parameters.kubernetesDeploymentServiceConnection }}
+      command: apply
+      useConfigurationFile: true
+      configurationType: inline
+      arguments: '--server-side --field-manager=fastfood-pr-bootstrap'
+      inline: |
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: pr-${{ parameters.pullRequestId }}
+          labels:
+            app.kubernetes.io/part-of: fastfood
+            app.kubernetes.io/managed-by: azure-pipelines
+            fastfood.dev/environment: pull-request
+            fastfood.dev/pull-request-id: "${{ parameters.pullRequestId }}"
+            fastfood.dev/redis-db: "$(redisDB)"
+
+  - task: Kubernetes@1
+    displayName: 'Authorize Helm in pr-${{ parameters.pullRequestId }}'
+    inputs:
+      connectionType: 'Kubernetes Service Connection'
+      kubernetesServiceEndpoint: ${{ parameters.kubernetesDeploymentServiceConnection }}
+      namespace: pr-${{ parameters.pullRequestId }}
+      command: apply
+      useConfigurationFile: true
+      configurationType: inline
+      arguments: '--server-side --field-manager=fastfood-pr-bootstrap'
+      inline: |
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        metadata:
+          name: fastfood-release-manager
+          namespace: pr-${{ parameters.pullRequestId }}
+          labels:
+            app.kubernetes.io/part-of: fastfood
+            app.kubernetes.io/component: deployment-rbac
+            app.kubernetes.io/managed-by: azure-pipelines
+        subjects:
+          - kind: ServiceAccount
+            name: deployment-sa
+            namespace: cicd
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: ClusterRole
+          name: fastfood-release-manager
+
+  # Kubernetes@1 login intentionally keeps its generated kubeconfig for the
+  # Helm and collision checks that follow in the caller's job.
+  - task: Kubernetes@1
+    displayName: 'Authenticate PR environment checks'
+    inputs:
+      connectionType: 'Kubernetes Service Connection'
+      kubernetesServiceEndpoint: ${{ parameters.kubernetesDeploymentServiceConnection }}
+      command: login
+
+  - bash: |
+      set -euo pipefail
+
+      FASTFOOD_NAMESPACE='pr-${{ parameters.pullRequestId }}'
+      FASTFOOD_REDIS_DB='$(redisDB)'
+      FASTFOOD_CONFLICTS="$(kubectl get namespaces \
+        --selector="fastfood.dev/environment=pull-request,fastfood.dev/redis-db=${FASTFOOD_REDIS_DB}" \
+        --output=json | jq -r --arg current "$FASTFOOD_NAMESPACE" \
+          '[.items[].metadata.name | select(. != $current)] | join(",")')"
+
+      if [[ -n "$FASTFOOD_CONFLICTS" ]]; then
+        echo "Redis DB $FASTFOOD_REDIS_DB is already assigned to: $FASTFOOD_CONFLICTS" >&2
+        echo "Clean up the stale PR environment before deploying this PR." >&2
+        exit 1
+      fi
+
+      echo "Redis DB $FASTFOOD_REDIS_DB is isolated for $FASTFOOD_NAMESPACE."
+    displayName: 'Verify PR Redis DB isolation'

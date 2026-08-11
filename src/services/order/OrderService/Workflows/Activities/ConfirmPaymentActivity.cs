@@ -1,6 +1,7 @@
 ﻿using Dapr.Client;
 using Dapr.Workflow;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using FastFood.FeatureManagement.Common.Constants;
 using FastFood.FeatureManagement.Common.Services;
 using OrderPlacement.Services;
@@ -16,18 +17,21 @@ public partial class ConfirmPaymentActivity : WorkflowActivity<ConfirmPaymentEve
     private readonly IOrderStorage _orderStorage;
     private readonly ILogger<ConfirmPaymentActivity> _logger;
     private readonly DaprClient _daprClient;
+    private readonly IDaprServiceInvoker _serviceInvoker;
     private readonly IOrderPricingService _pricingService;
     private readonly IObservableFeatureManager _featureManager;
 
     public ConfirmPaymentActivity(
         IOrderStorage orderStorage, 
-        DaprClient daprClient, 
+        DaprClient daprClient,
+        IDaprServiceInvoker serviceInvoker,
         ILogger<ConfirmPaymentActivity> logger,
         IOrderPricingService pricingService,
         IObservableFeatureManager featureManager)
     {
         _orderStorage = orderStorage;
         _daprClient = daprClient;
+        _serviceInvoker = serviceInvoker;
         _logger = logger;
         _pricingService = pricingService;
         _featureManager = featureManager;
@@ -56,7 +60,8 @@ public partial class ConfirmPaymentActivity : WorkflowActivity<ConfirmPaymentEve
                 }
                 
                 // Send to FinanceService with pricing breakdown
-                await _daprClient.InvokeMethodAsync(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/newOrder", order.ToFinanceDto(pricing.ServiceFee, discount));
+                using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/newOrder", order.ToFinanceDto(pricing.ServiceFee, discount));
+                await _serviceInvoker.InvokeMethodAsync<object>(request);
                 LogPaymentConfirmed(context.InstanceId, order.Id);
             }
             else
@@ -69,7 +74,7 @@ public partial class ConfirmPaymentActivity : WorkflowActivity<ConfirmPaymentEve
             LogPaymentConfirmedFailed(context.InstanceId, input.OrderId);
         }
 
-        return order;
+        return order ?? throw new InvalidOperationException($"Order {input.OrderId} was not found.");
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "[Workflow {instanceId}] Confirmed payment for order {orderId}")]

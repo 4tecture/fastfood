@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fastfood-pr-environment-manager
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
+subjects:
+  - kind: ServiceAccount
+    name: deployment-sa
+    namespace: cicd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fastfood-pr-environment-manager

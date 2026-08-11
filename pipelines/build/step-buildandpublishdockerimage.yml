@@ -61,6 +61,12 @@ parameters:
 - name: runOnHost
   type: boolean
   default: false
+- name: registryServer
+  type: string
+  default: $(azureContainerRegistry)
+- name: platforms
+  type: string
+  default: linux/amd64
 
 
 steps:
@@ -78,20 +84,40 @@ steps:
 
 - ${{ if gt(length(parameters.nugetFeeds), 0) }}:
   - pwsh: |
-      $nugetConfig = Get-Content -Path "$(Build.SourcesDirectory)/nuget.config" -Raw
-      $credentialBlock = "<packageSourceCredentials>"
-      foreach ($feed in @(${ { parameters.nugetFeeds } })) {
-        $credentialBlock += "<${feed.feedName}>"
-        $credentialBlock += "<add key=\"Username\" value=\"${feed.username}\" />"
-        $credentialBlock += "<add key=\"ClearTextPassword\" value=\"${feed.password}\" />"
-        $credentialBlock += "</${feed.feedName}>"
-      }
-      $credentialBlock += "</packageSourceCredentials>"
-      $nugetConfig = $nugetConfig -Replace '</configuration>', "$credentialBlock`n</configuration>"
-      $nugetConfig | Out-File -FilePath "$(Agent.TempDirectory)/nuget.config" -NoNewline -Encoding UTF8
-    displayName: 'Prepare nuget.config Secret File'
+      Copy-Item "$(Build.SourcesDirectory)/nuget.config" "$(Agent.TempDirectory)/nuget.config" -Force
+    displayName: 'Create temporary NuGet configuration'
     ${{ if eq(parameters.runOnHost, true) }}:   
       target: host
+  - ${{ each feed in parameters.nugetFeeds }}:
+    - pwsh: |
+        [xml]$config = Get-Content "$(Agent.TempDirectory)/nuget.config"
+        $root = $config.configuration.packageSourceCredentials
+        if ($null -eq $root) {
+          $root = $config.CreateElement('packageSourceCredentials')
+          [void]$config.configuration.AppendChild($root)
+        }
+        $existing = $root.SelectSingleNode('${{ feed.feedName }}')
+        if ($null -ne $existing) {
+          [void]$root.RemoveChild($existing)
+        }
+        $feedNode = $config.CreateElement('${{ feed.feedName }}')
+        foreach ($entry in @(
+          @{ Key = 'Username'; Value = $env:FASTFOOD_FEED_USERNAME },
+          @{ Key = 'ClearTextPassword'; Value = $env:FASTFOOD_FEED_PASSWORD }
+        )) {
+          $add = $config.CreateElement('add')
+          $add.SetAttribute('key', $entry.Key)
+          $add.SetAttribute('value', $entry.Value)
+          [void]$feedNode.AppendChild($add)
+        }
+        [void]$root.AppendChild($feedNode)
+        $config.Save("$(Agent.TempDirectory)/nuget.config")
+      displayName: 'Add credentials for NuGet feed ${{ feed.feedName }}'
+      env:
+        FASTFOOD_FEED_USERNAME: ${{ feed.username }}
+        FASTFOOD_FEED_PASSWORD: ${{ feed.password }}
+      ${{ if eq(parameters.runOnHost, true) }}:
+        target: host
 
 - ${{ each artifact in parameters.publishArtifacts }}:
   - task: Docker@2
@@ -104,11 +130,10 @@ steps:
       buildContext: '${{ parameters.buildContext }}'
       tags: |
         ${{ lower(parameters.buildNumber) }}
-        latest
       ${{ if gt(length(parameters.nugetFeeds), 0) }}:
-        arguments: --secret id=nugetconfig,src=$(Agent.TempDirectory)/nuget.config ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target ${{ artifact.dockerfileTarget }} --progress=plain
+        arguments: --pull --secret id=nugetconfig,src=$(Agent.TempDirectory)/nuget.config ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target ${{ artifact.dockerfileTarget }} --progress=plain
       ${{ if eq(length(parameters.nugetFeeds), 0) }}:
-        arguments: ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target ${{ artifact.dockerfileTarget }} --progress=plain
+        arguments: --pull ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target ${{ artifact.dockerfileTarget }} --progress=plain
     ${{ if eq(parameters.runOnHost, true) }}:   
       target: host
 
@@ -134,12 +159,10 @@ steps:
       ${{ if eq(parameters.runOnHost, true) }}:   
         target: host
 
-    - task: PublishCodeCoverageResults@1
+    - task: PublishCodeCoverageResults@2
       displayName: 'Publish code coverage results'
       inputs:
-        codeCoverageTool: 'Cobertura'
-        summaryFileLocation: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}/coverage/coverage.json'
-        reportDirectory: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}/coverage/reports'
+        summaryFileLocation: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}/**/coverage.cobertura.xml'
       ${{ if eq(parameters.runOnHost, true) }}:   
         target: host
 
@@ -153,31 +176,41 @@ steps:
         target: host
 
 - task: Docker@2
-  displayName: 'Build Docker Image (final)'
+  displayName: 'Authenticate to container registry'
   inputs:
     containerRegistry: '${{ parameters.azureContainerRegistryServiceConnection }}'
-    repository: '${{ parameters.dockerRepositoryName }}'
-    command: 'build'
-    Dockerfile: '${{ parameters.dockerFile }}'
-    buildContext: '${{ parameters.buildContext }}'
-    tags: |
-      ${{ lower(parameters.buildNumber) }}
-      latest
-    ${{ if gt(length(parameters.nugetFeeds), 0) }}:
-      arguments: --secret id=nugetconfig,src=$(Agent.TempDirectory)/nuget.config ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target final --progress=plain
-    ${{ if eq(length(parameters.nugetFeeds), 0) }}:
-      arguments: ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target final --progress=plain
+    command: 'login'
   ${{ if eq(parameters.runOnHost, true) }}:   
     target: host
 
-- task: Docker@2
-  displayName: 'Push the docker image to the registry'
-  inputs:
-    containerRegistry: '${{ parameters.azureContainerRegistryServiceConnection }}'
-    repository: '${{ parameters.dockerRepositoryName }}'
-    command: 'push'
-    tags: |
-      ${{ lower(parameters.buildNumber) }}
-      latest
+- bash: |
+    set -euo pipefail
+    FASTFOOD_NUGET_CONFIG='$(Build.SourcesDirectory)/nuget.config'
+    if [ -f '$(Agent.TempDirectory)/nuget.config' ]; then
+      FASTFOOD_NUGET_CONFIG='$(Agent.TempDirectory)/nuget.config'
+    fi
+    docker buildx create --name fastfood-builder --driver docker-container --use 2>/dev/null || docker buildx use fastfood-builder
+    docker buildx inspect --bootstrap
+    mkdir -p '$(Build.ArtifactStagingDirectory)/image-metadata'
+    FASTFOOD_METADATA_FILE='$(Build.ArtifactStagingDirectory)/image-metadata/${{ parameters.dockerRepositoryName }}.json'
+    docker buildx build \
+      --file '${{ parameters.dockerFile }}' \
+      --platform '${{ parameters.platforms }}' \
+      --target final \
+      --pull \
+      --tag '${{ parameters.registryServer }}/${{ parameters.dockerRepositoryName }}:${{ lower(parameters.buildNumber) }}' \
+      --provenance=mode=max \
+      --sbom=true \
+      --metadata-file "${FASTFOOD_METADATA_FILE}" \
+      --build-arg BUILDID='${{ parameters.buildId }}' \
+      ${{ parameters.dockerArguments }} \
+      --secret "id=nugetconfig,src=${FASTFOOD_NUGET_CONFIG}" \
+      --push \
+      '${{ parameters.buildContext }}'
+    FASTFOOD_IMAGE_DIGEST="$(jq -r '."containerimage.digest"' "${FASTFOOD_METADATA_FILE}")"
+    test -n "${FASTFOOD_IMAGE_DIGEST}"
+    test "${FASTFOOD_IMAGE_DIGEST}" != 'null'
+    echo "Published ${{ parameters.registryServer }}/${{ parameters.dockerRepositoryName }}@${FASTFOOD_IMAGE_DIGEST}"
+  displayName: 'Build and push immutable image with SBOM and provenance'
   ${{ if eq(parameters.runOnHost, true) }}:   
     target: host

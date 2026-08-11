@@ -33,13 +33,20 @@ public class KitchenEventHandlerController : ControllerBase
         using var activity = _observability.StartActivity(this.GetType(), includeCallerTypeInName: true);
         try
         {
+            if (string.IsNullOrWhiteSpace(order.OrderReference)
+                || order.Items is null
+                || order.Items.Any(item => string.IsNullOrWhiteSpace(item.ProductDescription)))
+            {
+                return BadRequest("Order reference, items, and product descriptions are required.");
+            }
+
             if (_failForDemo)
             {
                 _logger.LogWarning("Processing failed for demo purposes");
                 throw new Exception("Processing failed for demo purposes");
             }
             _logger.LogInformation("New order received in kitchen: {OrderId}", order.Id);
-            await _kitchenService.AddOrder(order.Id, order.OrderReference, order.Items!.Select(i => new Tuple<Guid, Guid, string, int, string?>(i.Id, i.ProductId, i.ProductDescription, i.Quantity, i.CustomerComments)));
+            await _kitchenService.AddOrder(order.Id, order.OrderReference, order.Items.Select(i => new Tuple<Guid, Guid, string, int, string?>(i.Id, i.ProductId, i.ProductDescription!, i.Quantity, i.CustomerComments)));
             return Ok();
         }
         catch (Exception ex)

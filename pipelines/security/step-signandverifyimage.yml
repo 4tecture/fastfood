@@ -1,0 +1,33 @@
+parameters:
+  - name: imageReference
+    type: string
+  - name: privateKeySecureFile
+    type: string
+  - name: publicKeySecureFile
+    type: string
+
+steps:
+  - task: DownloadSecureFile@1
+    name: cosignPrivateKey
+    displayName: 'Download Cosign private key'
+    inputs:
+      secureFile: '${{ parameters.privateKeySecureFile }}'
+
+  - task: DownloadSecureFile@1
+    name: cosignPublicKey
+    displayName: 'Download Cosign public key'
+    inputs:
+      secureFile: '${{ parameters.publicKeySecureFile }}'
+
+  - bash: |
+      set -euo pipefail
+      FASTFOOD_DIGEST="$(docker buildx imagetools inspect '${{ parameters.imageReference }}' --format '{{json .Manifest.Digest}}' | tr -d '"')"
+      test -n "${FASTFOOD_DIGEST}"
+      FASTFOOD_REPOSITORY="${{ parameters.imageReference }}"
+      FASTFOOD_REPOSITORY="${FASTFOOD_REPOSITORY%:*}"
+      FASTFOOD_SIGNED_REFERENCE="${FASTFOOD_REPOSITORY}@${FASTFOOD_DIGEST}"
+      cosign sign --yes --key '$(cosignPrivateKey.secureFilePath)' "${FASTFOOD_SIGNED_REFERENCE}"
+      cosign verify --key '$(cosignPublicKey.secureFilePath)' "${FASTFOOD_SIGNED_REFERENCE}"
+    displayName: 'Sign and verify immutable image digest'
+    env:
+      COSIGN_PASSWORD: $(cosignPassword)

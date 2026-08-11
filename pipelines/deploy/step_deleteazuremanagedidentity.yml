@@ -8,16 +8,38 @@ parameters:
 - name: continueOnError
   type: boolean
   default: false
+- name: condition
+  type: string
+  default: succeeded()
 
 steps:
 - task: AzureCLI@2
-  displayName: "Delete Managed Identity ${{ parameters.Managedidentity }} in ${{ parameters.ManagedIdentityResourceGroup }}"
+  displayName: 'Delete Managed Identity ${{ parameters.ManagedIdentity }} in ${{ parameters.ManagedIdentityResourceGroup }}'
+  condition: ${{ parameters.condition }}
   inputs:
     azureSubscription: "${{ parameters.AzureSubscription }}"
     scriptType: "pscore"
     scriptLocation: "inlineScript"
     inlineScript: |
-      az identity delete --name ${{ parameters.Managedidentity }} --resource-group ${{ parameters.ManagedIdentityResourceGroup }}
+      $identityName = '${{ parameters.ManagedIdentity }}'
+      $resourceGroup = '${{ parameters.ManagedIdentityResourceGroup }}'
+
+      $existingIdentity = az identity list `
+        --resource-group $resourceGroup `
+        --query "[?name=='$identityName'].id | [0]" `
+        --output tsv
+      if ($LASTEXITCODE -ne 0) {
+        throw "Could not query managed identities in $resourceGroup."
+      }
+
+      if ([string]::IsNullOrWhiteSpace($existingIdentity)) {
+        Write-Host "Managed identity $identityName is already absent."
+        exit 0
+      }
+
+      az identity delete --name $identityName --resource-group $resourceGroup
+      if ($LASTEXITCODE -ne 0) {
+        throw "Could not delete managed identity $identityName."
+      }
   ${{ if eq(parameters.continueOnError, true) }}:
-      continueOnError: true
-  
+    continueOnError: true

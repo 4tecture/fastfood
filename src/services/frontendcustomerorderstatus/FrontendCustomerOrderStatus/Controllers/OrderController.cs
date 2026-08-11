@@ -1,5 +1,5 @@
-﻿using Dapr.Client;
-using FastFood.Common;
+﻿using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using Microsoft.AspNetCore.Mvc;
 using OrderService.Common.Dtos;
 
@@ -9,13 +9,13 @@ namespace FrontendCustomerOrderStatus.Controllers;
 [Route("api/[controller]")]
 public partial class OrderController : ControllerBase
 {
-    private readonly DaprClient _daprClient;
+    private readonly IDaprServiceInvoker _serviceInvoker;
     private readonly ILogger<OrderController> _logger;
     private const string ApiPrefix = "api/orderstate";
 
-    public OrderController(DaprClient daprClient, ILogger<OrderController> logger)
+    public OrderController(IDaprServiceInvoker serviceInvoker, ILogger<OrderController> logger)
     {
-        _daprClient = daprClient;
+        _serviceInvoker = serviceInvoker;
         _logger = logger;
     }
 
@@ -24,7 +24,8 @@ public partial class OrderController : ControllerBase
     {
         try
         {
-            var order = await _daprClient.InvokeMethodAsync<OrderDto>(HttpMethod.Get, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/{id}");
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Get, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/{id}");
+            var order = await _serviceInvoker.InvokeMethodAsync<OrderDto>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return Ok(order);
         }
         catch

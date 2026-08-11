@@ -2,7 +2,7 @@ parameters:
   - name: pool
     type: object
     default:
-      vmImage: 'ubuntu-latest'
+      vmImage: 'ubuntu-24.04'
   - name: container
     type: string
     default: ''
@@ -112,16 +112,25 @@ parameters:
   # Trivy tuning
   - name: trivyVersion
     type: string
-    default: 'latest'
+    default: '0.73.0'
   - name: trivyCacheDir
     type: string
     default: '$(Pipeline.Workspace)/.trivycache'
   - name: trivySeverityFail
     type: string
     default: 'CRITICAL,HIGH'
+  - name: trivySeverities
+    type: string
+    default: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+  - name: trivyFailOnSeverityThreshold
+    type: string
+    default: 'HIGH'
+  - name: trivyIgnoreUnfixed
+    type: boolean
+    default: true
   - name: trivyExitCodeVuln
     type: number
-    default: 0
+    default: 1
   - name: trivyFsTargets
     type: object
     default: ['.']
@@ -211,13 +220,13 @@ jobs:
               nugetConfigPath: ${{ parameters.nugetConfigPath }}
             ${{ if or(eq(parameters.feedsToUse, 'feed'), eq(parameters.feedsToUse, 'select')) }}:
               externalFeedCredentials: ${{ parameters.externalFeedCredentials }}
-            arguments: '--use-lock-file ${{ parameters.dotnetRestoreExtraArgs }}'
+            arguments: '--locked-mode ${{ parameters.dotnetRestoreExtraArgs }}'
 
       - ${{ if eq(parameters.dotnetProjectGlobs, '') }}:
         - ${{ each path in parameters.dotnetSolutionsOrProjects }}:
           - script: |
               echo "Restoring (lockfile) ${{ path }}"
-              dotnet restore "${{ path }}" --use-lock-file ${{ parameters.dotnetRestoreExtraArgs }}
+              dotnet restore "${{ path }}" --locked-mode ${{ parameters.dotnetRestoreExtraArgs }}
             displayName: 'dotnet restore (lockfile): ${{ path }}'
 
     # 3) GHAS Dependency Scanning (only if enabled)
@@ -248,7 +257,33 @@ jobs:
 
     # 6) Trivy scans
 
-    # FS scan → SARIF (always runs; you can tweak with parameters)
+    # trivy@2 accepts additional CLI flags through `options`. Several v1 input
+    # names (for example severity, format, output and trivyCacheDir) are ignored
+    # by v2, so build the common options explicitly once for every scan.
+    - bash: |
+        set -euo pipefail
+
+        FASTFOOD_TRIVY_OPTIONS="--cache-dir ${FASTFOOD_TRIVY_CACHE_DIR}"
+        if [ -n "${FASTFOOD_TRIVY_CONFIG_PATH}" ]; then
+          FASTFOOD_TRIVY_OPTIONS="${FASTFOOD_TRIVY_OPTIONS} --config ${FASTFOOD_TRIVY_CONFIG_PATH}"
+        fi
+        if [ -n "${FASTFOOD_TRIVY_SKIP_DIRS}" ]; then
+          FASTFOOD_TRIVY_OPTIONS="${FASTFOOD_TRIVY_OPTIONS} --skip-dirs ${FASTFOOD_TRIVY_SKIP_DIRS}"
+        fi
+        if [ -n "${FASTFOOD_TRIVY_SKIP_FILES}" ]; then
+          FASTFOOD_TRIVY_OPTIONS="${FASTFOOD_TRIVY_OPTIONS} --skip-files ${FASTFOOD_TRIVY_SKIP_FILES}"
+        fi
+
+        echo "##vso[task.setvariable variable=FastFoodTrivyOptions]${FASTFOOD_TRIVY_OPTIONS}"
+      displayName: 'Configure Trivy v2 options'
+      env:
+        FASTFOOD_TRIVY_CACHE_DIR: ${{ parameters.trivyCacheDir }}
+        FASTFOOD_TRIVY_CONFIG_PATH: ${{ parameters.trivyConfigPath }}
+        FASTFOOD_TRIVY_SKIP_DIRS: ${{ join(',', parameters.trivyFsSkipDirs) }}
+        FASTFOOD_TRIVY_SKIP_FILES: ${{ join(',', parameters.trivyFsSkipFiles) }}
+
+    # Report all severities, but fail only on fixable findings at or above the
+    # configured threshold. Scanner/runtime errors always remain blocking.
     - ${{ each tgt in parameters.trivyFsTargets }}:
       - task: trivy@2
         displayName: 'Trivy FS scan: ${{ tgt }} (${{ parameters.trivyFsScanners }})'
@@ -256,18 +291,14 @@ jobs:
           type: filesystem
           target: '${{ tgt }}'
           scanners: '${{ parameters.trivyFsScanners }}'
-          ${{ if gt(length(parameters.trivyFsSkipDirs), 0) }}:
-            skipDirs: ${{ join(parameters.trivyFsSkipDirs, ',') }}
-          ${{ if gt(length(parameters.trivyFsSkipFiles), 0) }}:
-            skipFiles: ${{ join(parameters.trivyFsSkipFiles, ',') }}
-          format: sarif
-          output: "$(Build.SourcesDirectory)/reports/trivy-fs-${{ replace(tgt, '/', '_') }}.sarif"
-          exitCode: '0'
-          trivyCacheDir: ${{ parameters.trivyCacheDir }}
+          severities: '${{ parameters.trivySeverities }}'
+          ignoreUnfixed: ${{ parameters.trivyIgnoreUnfixed }}
+          failOnSeverityThreshold: '${{ parameters.trivyFailOnSeverityThreshold }}'
+          ignoreScanErrors: false
+          reports: sarif
+          options: '$(FastFoodTrivyOptions)'
           version: ${{ parameters.trivyVersion }}
-          ${{ if ne(parameters.trivyConfigPath, '') }}:
-            configFile: '${{ parameters.trivyConfigPath }}'
-        continueOnError: true
+        continueOnError: false
 
     - ${{ if eq(parameters.runLicenseScan, true) }}:
       - ${{ each tgt in parameters.trivyFsTargets }}:
@@ -277,23 +308,18 @@ jobs:
             type: filesystem
             target: '${{ tgt }}'
             scanners: 'license'
-            ${{ if gt(length(parameters.trivyFsSkipDirs), 0) }}:
-              skipDirs: ${{ join(parameters.trivyFsSkipDirs, ',') }}
-            ${{ if gt(length(parameters.trivyFsSkipFiles), 0) }}:
-              skipFiles: ${{ join(parameters.trivyFsSkipFiles, ',') }}
-            format: json
-            output: "$(Build.SourcesDirectory)/reports/trivy-fs-license-${{ replace(tgt, '/', '_') }}.json"
-            exitCode: '0'
-            trivyCacheDir: ${{ parameters.trivyCacheDir }}
+            severities: '${{ parameters.trivySeverities }}'
+            failOnSeverityThreshold: '${{ parameters.trivyFailOnSeverityThreshold }}'
+            ignoreScanErrors: false
+            reports: sarif
+            options: '$(FastFoodTrivyOptions)'
             version: ${{ parameters.trivyVersion }}
-            ${{ if ne(parameters.trivyConfigPath, '') }}:
-              configFile: '${{ parameters.trivyConfigPath }}'
-          continueOnError: true
+          continueOnError: false
 
     # Build & scan each Dockerfile (CLI)
     - ${{ each df in parameters.dockerfilesToBuild }}:
-      - script: |
-          set -e
+      - bash: |
+          set -euo pipefail
           mkdir -p "$(Build.SourcesDirectory)/reports"
           SAFE_NAME=$(basename "${{ df }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
           TAG="${SAFE_NAME}:$(Build.BuildId)"
@@ -301,9 +327,9 @@ jobs:
           docker build -f "${{ df }}" ${{ parameters.dockerBuildArgs }} -t "${TAG}" "${{ parameters.dockerBuildContext }}"
 
           echo "Scanning image ${TAG} with Trivy (CLI)"
-          CFG=""
+          FASTFOOD_CONFIG_ARGS=()
           if [ -n "${{ parameters.trivyConfigPath }}" ]; then
-            CFG="--config '${{ parameters.trivyConfigPath }}'"
+            FASTFOOD_CONFIG_ARGS=(--config "${{ parameters.trivyConfigPath }}")
           fi
 
           trivy --version
@@ -312,17 +338,17 @@ jobs:
             --format sarif \
             --output "$(Build.SourcesDirectory)/reports/trivy-image-${SAFE_NAME}.sarif" \
             --ignore-unfixed \
-            --vuln-type "os,library" \
+            --pkg-types "os,library" \
             --severity "${{ parameters.trivySeverityFail }}" \
-            $CFG \
+            --exit-code "${{ parameters.trivyExitCodeVuln }}" \
+            "${FASTFOOD_CONFIG_ARGS[@]}" \
             "${TAG}" || EXIT=$?
 
-          if [ "${{ parameters.trivyExitCodeVuln }}" -ne 0 ] && [ "${EXIT:-0}" -ne 0 ]; then
-            echo "Trivy found issues and trivyExitCodeVuln != 0 → failing"
-            exit 1
-          else
-            echo "Trivy completed (non-blocking)"
+          if [ "${EXIT:-0}" -ne 0 ]; then
+            echo "Trivy found policy violations."
+            exit "${EXIT}"
           fi
+          echo "Trivy scan passed."
         displayName: 'Docker build+scan: ${{ df }}'
 
     # Scan any pre-built images (task-based)
@@ -333,17 +359,14 @@ jobs:
           type: image
           target: '${{ image }}'
           scanners: vuln
-          format: sarif
-          output: "$(Build.SourcesDirectory)/reports/trivy-image-${{ replace(image, '/', '_') }}.sarif"
-          exitCode: ${{ parameters.trivyExitCodeVuln }}
-          ignoreUnfixed: true
-          vulnType: 'os,library'
-          severity: ${{ parameters.trivySeverityFail }}
-          trivyCacheDir: ${{ parameters.trivyCacheDir }}
+          severities: '${{ parameters.trivySeverities }}'
+          ignoreUnfixed: ${{ parameters.trivyIgnoreUnfixed }}
+          failOnSeverityThreshold: '${{ parameters.trivyFailOnSeverityThreshold }}'
+          ignoreScanErrors: false
+          reports: sarif
+          options: '$(FastFoodTrivyOptions) --pkg-types os,library'
           version: ${{ parameters.trivyVersion }}
-          ${{ if ne(parameters.trivyConfigPath, '') }}:
-            configFile: '${{ parameters.trivyConfigPath }}'
-        continueOnError: true
+        continueOnError: false
 
     # Helm charts (misconfig) → SARIF
     - ${{ each chart in parameters.helmChartFolders }}:
@@ -353,14 +376,34 @@ jobs:
           type: filesystem
           target: '${{ chart }}'
           scanners: 'misconfig'
-          format: sarif
-          output: "$(Build.SourcesDirectory)/reports/trivy-helm-${{ replace(chart, '/', '_') }}.sarif"
-          exitCode: '0'
-          trivyCacheDir: ${{ parameters.trivyCacheDir }}
+          severities: '${{ parameters.trivySeverities }}'
+          failOnSeverityThreshold: '${{ parameters.trivyFailOnSeverityThreshold }}'
+          ignoreScanErrors: false
+          reports: sarif
+          options: '$(FastFoodTrivyOptions)'
           version: ${{ parameters.trivyVersion }}
-          ${{ if ne(parameters.trivyConfigPath, '') }}:
-            configFile: '${{ parameters.trivyConfigPath }}'
-        continueOnError: true
+        continueOnError: false
+
+    # trivy@2 writes its JSON and generated SARIF reports below the agent temp
+    # directory. Gather them so GHAS and the raw-report artifact keep working.
+    - bash: |
+        set -euo pipefail
+        FASTFOOD_TRIVY_TEMP="$(Agent.TempDirectory)/trivy"
+        FASTFOOD_REPORTS="$(Build.SourcesDirectory)/reports"
+        mkdir -p "${FASTFOOD_REPORTS}"
+
+        if [ ! -d "${FASTFOOD_TRIVY_TEMP}" ]; then
+          echo "No Trivy report directory was created."
+          exit 0
+        fi
+
+        find "${FASTFOOD_TRIVY_TEMP}" -maxdepth 1 -type f -name 'trivy-results-*.json' -exec cp {} "${FASTFOOD_REPORTS}/" \;
+        while IFS= read -r FASTFOOD_SARIF; do
+          FASTFOOD_SARIF_NAME=$(basename "${FASTFOOD_SARIF}" .json)
+          cp "${FASTFOOD_SARIF}" "${FASTFOOD_REPORTS}/${FASTFOOD_SARIF_NAME}"
+        done < <(find "${FASTFOOD_TRIVY_TEMP}" -maxdepth 1 -type f -name 'trivy-results-*.sarif.json')
+      displayName: 'Collect Trivy v2 reports'
+      condition: succeededOrFailed()
 
     # 7) Publish Trivy SARIF
     - ${{ if eq(parameters.publishSarif, true) }}:
@@ -381,4 +424,3 @@ jobs:
     # Caller finalization steps
     - ${{ each _step in parameters.finalizationSteps }}:
       - ${{ _step }}
-

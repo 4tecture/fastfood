@@ -1,33 +1,39 @@
 # Use the official ASP.NET Core runtime as a parent image
-FROM mcr.microsoft.com/dotnet/sdk:9.0.300 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
 
 # Expose port 8080 for the application
 EXPOSE 8080
 
 # Set the working directory in the container
 WORKDIR /src
-
-# Copy the source code of the repository
-COPY . .
+COPY ["Directory.Build.props", "."]
 
 # Copy project files for different parts of the solution to enable caching of the restore step.
-COPY ["FastFood.Common/FastFood.Common.csproj", "FastFood.Common/"]
-COPY ["FinanceService/FinanceService.csproj", "FinanceService/"]
-COPY ["FinanceService.Common/FinanceService.Common.csproj", "FinanceService.Common/"]
+COPY ["common/FastFood.Common/FastFood.Common.csproj", "common/FastFood.Common/packages.lock.json", "common/FastFood.Common/"]
+COPY ["common/FastFood.Observability.Common/FastFood.Observability.Common.csproj", "common/FastFood.Observability.Common/packages.lock.json", "common/FastFood.Observability.Common/"]
+COPY ["services/finance/FinanceService/FinanceService.csproj", "services/finance/FinanceService/packages.lock.json", "services/finance/FinanceService/"]
+COPY ["services/finance/FinanceService.Common/FinanceService.Common.csproj", "services/finance/FinanceService.Common/packages.lock.json", "services/finance/FinanceService.Common/"]
+COPY ["services/finance/FinanceService.Storage/FinanceService.Storage.csproj", "services/finance/FinanceService.Storage/packages.lock.json", "services/finance/FinanceService.Storage/"]
 
 # Restore all the project files
-RUN dotnet restore "FinanceService/FinanceService.csproj"
+RUN --mount=type=cache,target=/root/.nuget/packages dotnet restore "services/finance/FinanceService/FinanceService.csproj" --locked-mode
 
-# Build the FinanceService project in Release mode and output the build results to /app/build.
-RUN dotnet build "FinanceService/FinanceService.csproj" -c Release --no-restore
-RUN dotnet publish "FinanceService/FinanceService.csproj" -c Release -o /app/publish --no-restore
+# Source changes now invalidate only the build layer, not package restore.
+COPY . .
+
+# Reuse the restored packages while publishing. Cache mounts are not persisted in
+# image layers, so every step that reads the NuGet package cache must mount it.
+RUN --mount=type=cache,target=/root/.nuget/packages \
+    dotnet publish "services/finance/FinanceService/FinanceService.csproj" -c Release -o /app/publish --no-restore
 
 
-FROM mcr.microsoft.com/dotnet/aspnet:9.0.3 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10-noble-chiseled-extra AS base
 
 WORKDIR /app
 
 COPY --from=build /app/publish .
+EXPOSE 8080
+USER $APP_UID
 
 # Define the entry point for the container
 ENTRYPOINT ["dotnet", "FinanceService.dll"]

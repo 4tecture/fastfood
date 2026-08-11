@@ -1,27 +1,53 @@
 parameters:
 - name: AzureSubscription
   type: string
-  default:
 - name: ResourceGroup
   type: string
-  default:
 - name: AzureSqlName
   type: string
-  default:
 - name: DbName
   type: string
-  default:
 - name: continueOnError
   type: boolean
   default: false
+- name: condition
+  type: string
+  default: succeeded()
 
 steps:
 - task: AzureCLI@2
-  displayName: Delete Azure SQL database ${{ parameters.DbName }}
+  displayName: 'Delete Azure SQL database ${{ parameters.DbName }}'
+  condition: ${{ parameters.condition }}
   inputs:
-    azureSubscription: '$(AzureSubscription)'
+    azureSubscription: '${{ parameters.AzureSubscription }}'
     scriptType: 'pscore'
     scriptLocation: 'inlineScript'
-    inlineScript: 'az sql db delete --name ${{ parameters.DbName }} --server ${{ parameters.AzureSqlName }} --resource-group ${{ parameters.ResourceGroup }} --yes'
+    inlineScript: |
+      $databaseName = '${{ parameters.DbName }}'
+      $serverName = '${{ parameters.AzureSqlName }}'
+      $resourceGroup = '${{ parameters.ResourceGroup }}'
+
+      $existingDatabase = az sql db list `
+        --server $serverName `
+        --resource-group $resourceGroup `
+        --query "[?name=='$databaseName'].name | [0]" `
+        --output tsv
+      if ($LASTEXITCODE -ne 0) {
+        throw "Could not query Azure SQL databases in $resourceGroup/$serverName."
+      }
+
+      if ([string]::IsNullOrWhiteSpace($existingDatabase)) {
+        Write-Host "Azure SQL database $databaseName is already absent."
+        exit 0
+      }
+
+      az sql db delete `
+        --name $databaseName `
+        --server $serverName `
+        --resource-group $resourceGroup `
+        --yes
+      if ($LASTEXITCODE -ne 0) {
+        throw "Could not delete Azure SQL database $databaseName."
+      }
   ${{ if eq(parameters.continueOnError, true) }}:
-      continueOnError: true
+    continueOnError: true

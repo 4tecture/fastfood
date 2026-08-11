@@ -1,4 +1,5 @@
 dapr:
   redisHost: "redis-ha-haproxy.redis:6379"
-  redisPassword: "__redisPassword__"
+  existingRedisSecret: "fastfood-redis"
+  createRedisSecret: false
   redisDB: 0

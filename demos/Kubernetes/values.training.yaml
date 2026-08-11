@@ -1,0 +1,19 @@
+replicaCount: 2
+image:
+  repository: fastfood/financeservice
+  tag: training
+  pullPolicy: Never
+podAnnotations:
+  dapr.io/enabled: "false"
+envvariables:
+  HealthChecks__CheckDapr: "false"
+database:
+  useInMemoryDatabase: true
+  createSecret: false
+migration:
+  enabled: false
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+networkPolicy:
+  enabled: true

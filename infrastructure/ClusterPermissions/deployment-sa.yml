@@ -2,9 +2,16 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: cicd
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: deployment-sa
   namespace: cicd
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
+automountServiceAccountToken: false

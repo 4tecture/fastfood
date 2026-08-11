@@ -1,17 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../../lib.sh"
 
-# Define variables
-PROJECT_NAME="FinanceService"
-PUBLISH_DIR="./publish"
+PUBLISH_DIR="$SCRIPT_DIR/publish"
 IMAGE_NAME="financeservice-demo-compileandcopy"
-
-# Clean up previous publish folder
-if [ -d "$PUBLISH_DIR" ]; then
-    rm -rf "$PUBLISH_DIR"
-fi
-
-# Publish the project
-dotnet publish "../../../$PROJECT_NAME/$PROJECT_NAME.csproj" -c Release -o "$PUBLISH_DIR"
-
-# Build the Docker image
-docker build -t "$IMAGE_NAME" -f Dockerfile .
+rm -rf "$PUBLISH_DIR"
+dotnet publish "$FASTFOOD_SRC_DIR/services/finance/FinanceService/FinanceService.csproj" -c Release -o "$PUBLISH_DIR"
+docker build --tag "$IMAGE_NAME" --file "$SCRIPT_DIR/Dockerfile" "$SCRIPT_DIR"
+smoke_finance_image "$IMAGE_NAME" "demo-compile-copy" 18081

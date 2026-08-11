@@ -3,7 +3,12 @@ import apiClient from '@/store/apiClient'
 import * as signalR from '@microsoft/signalr'
 
 export const useOrderStatusStore = defineStore('orderStatus', {
-  state: () => ({ ordersInPreparation: [], ordersFinished: [], signalRHubConnection: null }),
+  state: () => ({
+    ordersInPreparation: [],
+    ordersFinished: [],
+    signalRHubConnection: null,
+    signalRRetryTimer: null,
+  }),
   getters: {
     ordersInPreparationList: (s) => s.ordersInPreparation,
     ordersFinishedList: (s) => s.ordersFinished,
@@ -35,15 +40,68 @@ export const useOrderStatusStore = defineStore('orderStatus', {
         this.updateOrder(response.data)
       } catch (error) {
         if (error.response && error.response.status === 404) this.removeOrder(orderId)
-        else console.error('Error fetching pending order:', error)
+        else {
+          console.error('Error fetching pending order:', error)
+          throw error
+        }
       }
     },
-    async initializeSignalRHub() {
-      const connection = new signalR.HubConnectionBuilder().withUrl('/orderupdatehub').build()
-      connection.on('ReceiveOrderUpdate', (order) => this.fetchOrderAndUpdateStore(order.id))
-      await connection.start()
-      await connection.invoke('SubscribeToOrderUpdates')
+    async initializeSignalRHub({ onStateChange, onUpdateError } = {}) {
+      if (this.signalRHubConnection) return
+
+      const connection = new signalR.HubConnectionBuilder()
+        .withUrl('/orderupdatehub')
+        .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+        .build()
+
+      const subscribe = () => connection.invoke('SubscribeToOrderUpdates')
+
+      const scheduleStartupRetry = () => {
+        clearTimeout(this.signalRRetryTimer)
+        this.signalRRetryTimer = setTimeout(startConnection, 5000)
+      }
+
+      const startConnection = async () => {
+        if (connection.state !== signalR.HubConnectionState.Disconnected) return
+        onStateChange?.('connecting')
+        try {
+          await connection.start()
+          await subscribe()
+          onStateChange?.('live')
+        } catch (error) {
+          console.error('Error starting order status updates:', error)
+          onStateChange?.('offline')
+          scheduleStartupRetry()
+        }
+      }
+
+      connection.on('ReceiveOrderUpdate', async (order) => {
+        try {
+          await this.fetchOrderAndUpdateStore(order.id)
+          onStateChange?.('live')
+        } catch {
+          onStateChange?.('offline')
+          onUpdateError?.()
+        }
+      })
+      connection.onreconnecting(() => onStateChange?.('connecting'))
+      connection.onreconnected(async () => {
+        try {
+          await subscribe()
+          onStateChange?.('live')
+        } catch (error) {
+          console.error('Error restoring order status updates:', error)
+          onStateChange?.('offline')
+          onUpdateError?.()
+        }
+      })
+      connection.onclose(() => {
+        onStateChange?.('offline')
+        scheduleStartupRetry()
+      })
+
       this.signalRHubConnection = connection
+      await startConnection()
     },
   }
 })

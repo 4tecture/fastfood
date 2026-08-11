@@ -5,6 +5,9 @@ metadata:
   labels:
     {{- include "financeservice.labels" . | nindent 4 }}
 spec:
+  revisionHistoryLimit: 5
+  minReadySeconds: 5
+  progressDeadlineSeconds: 600
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
@@ -26,6 +29,7 @@ spec:
         azure.workload.identity/use: "true"
         {{- end }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -33,20 +37,11 @@ spec:
       serviceAccountName: {{ include "financeservice.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{- if not .Values.database.useInMemoryDatabase }}
-      initContainers:
-        - name: "{{ .Chart.Name }}-init"
-          image: "groundnuty/k8s-wait-for:no-root-v2.0"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args:
-            - "job"
-            - '{{ include "financeservice.fullname" . }}-dbdeployment-{{ .Release.Revision }}'
-      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.repository }}{{ if .Values.image.digest }}@{{ .Values.image.digest }}{{ else }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{ end }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -56,6 +51,8 @@ spec:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}
@@ -63,27 +60,22 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
-            {{- $root := . }}
             {{- range $key, $value := .Values.envvariables }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
 
-            {{- range $ref, $values := .Values.secrets }}
-            {{- range $key, $value := $values }}
-            - name: {{ $key }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ template "financeservice.fullname" $root }}-{{ $ref | lower }}
-                  key: {{ $key }}
-            {{- end }}
-            {{- end }}            
-                  
+            {{- if not .Values.database.useInMemoryDatabase }}
             - name: ConnectionStrings__FinanceDatabase
+              {{- if .Values.database.existingSecret }}
               valueFrom:
                 secretKeyRef:
-                  name: financeservice-database
+                  name: {{ .Values.database.existingSecret }}
                   key: ConnectionStrings__FinanceDatabase
+              {{- else }}
+              value: {{ required "database.connectionString or database.existingSecret is required when the in-memory database is disabled" .Values.database.connectionString | quote }}
+              {{- end }}
+            {{- end }}
             
             - name: FeatureManagement__UseInMemoryDatabase
               value: {{ .Values.database.useInMemoryDatabase | quote }}
@@ -92,11 +84,6 @@ spec:
             {{- if eq $key "serviceName" }}
             - name: Observability__ServiceName
               value: {{ $value | quote }}
-            {{- else if eq $key "zipkinExporter" }}
-            {{- range $subkey, $subvalue := $value }}
-            - name: Observability__ZipkinExporter__{{ $subkey | camelcase }}
-              value: {{ $subvalue | quote }}
-            {{- end }}
             {{- else if eq $key "otlpExporter" }}
             {{- range $subkey, $subvalue := $value }}
             - name: Observability__OtlpExporter__{{ $subkey | camelcase }}
@@ -148,6 +135,10 @@ spec:
       {{- end }}
       {{- with .Values.affinity }}
       affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.tolerations }}

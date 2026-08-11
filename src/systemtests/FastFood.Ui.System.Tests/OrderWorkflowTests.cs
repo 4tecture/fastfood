@@ -78,7 +78,7 @@ public class OrderWorkflowTests : PlaywrightTestBase
         Assert.Equal(3, kitchenOrder.Items.Count);
         Assert.Contains(kitchenOrder.Items, i => i.ProductName.Contains("Cheeseburger"));
         Assert.Contains(kitchenOrder.Items, i => i.ProductName.Contains("Classic Fries"));
-        Assert.Contains(kitchenOrder.Items, i => i.ProductName.Contains("Cola"));
+        Assert.Contains(kitchenOrder.Items, i => i.ProductName.Contains("Cola") && i.Quantity == 2);
 
         // Step 10: Verify order appears in customer order status as "In Preparation"
         var orderInPreparation = await orderStatusPage.WaitForOrderInPreparationAsync(orderNumber, 30000);
@@ -172,5 +172,25 @@ public class OrderWorkflowTests : PlaywrightTestBase
         
         var isCheckoutEnabled = await productsPage.IsCheckoutEnabledAsync();
         Assert.False(isCheckoutEnabled, "Checkout button should be disabled when cart is empty");
+    }
+
+    [Fact]
+    public async Task RemovingProduct_ShouldUpdateCartItemsAndTotal()
+    {
+        var posPage = await BrowserHelper.OpenSelfServicePosAsync(Context, Configuration);
+        var productsPage = await posPage.StartOrderingAsync();
+
+        await productsPage.AddProductAsync("Cheeseburger", 2);
+        await productsPage.AddProductAsync("Classic Fries");
+
+        var totalBeforeRemoval = await productsPage.GetTotalAsync();
+        Assert.True(totalBeforeRemoval > 0);
+
+        await productsPage.RemoveProductAsync("Cheeseburger");
+
+        var remainingItems = await productsPage.GetCartItemsAsync();
+        Assert.Single(remainingItems);
+        Assert.Equal("Classic Fries", remainingItems[0].ProductName);
+        Assert.True(await productsPage.GetTotalAsync() < totalBeforeRemoval);
     }
 }

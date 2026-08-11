@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FastFood.Common.Settings;
+using FastFood.Common.Health;
+using FastFood.Common.ServiceInvocation;
 using FastFood.FeatureManagement.Common.Extensions;
 using FastFood.Observability.Common;
 using FinanceService.Observability;
@@ -20,6 +22,7 @@ builder.Services.AddDaprClient(builder => builder
     .UseHttpEndpoint($"http://localhost:{daprHttpPort}")
     .UseGrpcEndpoint($"http://localhost:{daprGrpcPort}")
     .UseJsonSerializationOptions(new JsonSerializerOptions().ConfigureJsonSerializerOptions()));
+builder.Services.AddDaprServiceInvocation(builder.Configuration, 3900);
 
 // Add feature management
 builder.Services.AddObservableFeatureManagement();
@@ -38,7 +41,7 @@ builder.Services.AddControllers()
     .AddDapr();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddHealthChecks();
+builder.Services.AddFastFoodHealthChecks(builder.Configuration);
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -67,7 +70,7 @@ app.MapControllers();
 app.MapSubscribeHandler();
 app.MapHub<OrderUpdateHub>("/orderupdatehub");
 
-app.MapHealthChecks("/healthz");
+app.MapFastFoodHealthChecks();
 
 // Fallback to index.html for SPA routes
 app.MapFallbackToFile("index.html");

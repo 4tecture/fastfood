@@ -26,10 +26,10 @@ public partial class RemoveItemActivity : WorkflowActivity<RemoveItemEvent, Orde
         var order = await _orderStorage.GetOrderById(input.OrderId);
         if (order != null && order.State == OrderState.Creating)
         {
-            var itemToRemove = order.Items.FirstOrDefault(i => i.Id == input.ItemId);
+            var itemToRemove = order.Items?.FirstOrDefault(i => i.Id == input.ItemId);
             if (itemToRemove != null)
             {
-                order.Items.Remove(itemToRemove);
+                order.Items?.Remove(itemToRemove);
                 await _orderStorage.UpdateOrder(order);
                 await _daprClient.PublishEventAsync(FastFoodConstants.PubSubName, FastFoodConstants.EventNames.OrderUpdated, order.ToDto());
                 LogRemovedItem(context.InstanceId, order.Id, itemToRemove.Id);
@@ -44,7 +44,7 @@ public partial class RemoveItemActivity : WorkflowActivity<RemoveItemEvent, Orde
             LogRemovedItemFailed(context.InstanceId, input.OrderId, input.ItemId);
         }
 
-        return order;
+        return order ?? throw new InvalidOperationException($"Order {input.OrderId} was not found.");
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "[Workflow {instanceId}] Removed item {itemId} from order {orderId}")]

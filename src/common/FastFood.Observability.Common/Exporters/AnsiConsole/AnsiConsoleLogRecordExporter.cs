@@ -22,7 +22,7 @@ namespace FastFood.Observability.Common.Exporters.AnsiConsole
         public AnsiConsoleLogRecordExporter(
             ConsoleExporterOptions options, 
             OpenTelemetryLoggerOptions loggerOptions, 
-            AnsiConsoleTheme theme = null,
+            AnsiConsoleTheme? theme = null,
             bool useUtcTimestamp = true)
             : base(options)
         {
@@ -69,7 +69,7 @@ namespace FastFood.Observability.Common.Exporters.AnsiConsole
                         if (record.Attributes != null && record.Attributes.Count > 0)
                         {
                             // Find the original format template if it exists
-                            string originalFormat = null;
+                            string? originalFormat = null;
                             var formatAttr = record.Attributes.FirstOrDefault(attr => attr.Key == "{OriginalFormat}");
                             if (!string.IsNullOrEmpty(formatAttr.Key))
                             {
@@ -210,7 +210,7 @@ namespace FastFood.Observability.Common.Exporters.AnsiConsole
             };
         }
 
-        private string FormatCategory(string category)
+        private string FormatCategory(string? category)
         {
             if (string.IsNullOrEmpty(category))
                 return "Default";

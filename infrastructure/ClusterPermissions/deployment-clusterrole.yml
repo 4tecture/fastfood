@@ -1,0 +1,54 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fastfood-release-manager
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets", "serviceaccounts", "services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Helm's --wait implementation follows a Deployment through its ReplicaSet
+  # to the resulting Pods. These workload instances are controller-owned, so
+  # the release identity receives read-only access rather than mutation rights.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  # Temporary compatibility for the latest stable finance chart (1.0.1),
+  # whose k8s-wait-for Role incorrectly calls the core API group "core"
+  # instead of "". Kubernetes does not serve this group, so the rule grants
+  # no effective workload access; it only lets Helm reproduce that legacy
+  # Role without granting the deployment identity the unsafe escalate verb.
+  # Remove after main publishes a finance chart containing the new hook-based
+  # migration Job, which no longer creates k8s-wait-for RBAC.
+  - apiGroups: ["core"]
+    resources: ["pods", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["dapr.io"]
+    resources: ["components", "resiliencies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Some charts create a namespace-local Role and RoleBinding for their runtime
+  # ServiceAccount. Kubernetes' bind/escalate checks prevent this identity from
+  # granting permissions it does not already possess.
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

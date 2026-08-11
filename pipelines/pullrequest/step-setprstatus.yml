@@ -43,8 +43,13 @@ steps:
       set -euo pipefail           # stop on any error
 
       # ---------- derive API route ----------
+      pullRequestId='${{ parameters.pullRequestId }}'
+      if [[ ! "$pullRequestId" =~ ^[1-9][0-9]*$ ]]; then
+        echo "Invalid or missing pull request id: $pullRequestId" >&2
+        exit 1
+      fi
       baseUrl="${SYSTEM_TEAMFOUNDATIONCOLLECTIONURI}${SYSTEM_TEAMPROJECT}"
-      statusUrl="$baseUrl/_apis/git/repositories/${BUILD_REPOSITORY_ID}/pullRequests/${{ parameters.pullRequestId }}/statuses?api-version=7.1"
+      statusUrl="$baseUrl/_apis/git/repositories/${BUILD_REPOSITORY_ID}/pullRequests/${pullRequestId}/statuses?api-version=7.1"
 
       # ---------- choose targetUrl ----------
       if [ -n "${{ parameters.targetUrl }}" ]; then
@@ -64,8 +69,8 @@ steps:
       if [[ "$iteration_raw" =~ ^[0-9]+$ ]]; then
         iteration="$iteration_raw"
       else
-        iterationsUrl="$baseUrl/_apis/git/repositories/${BUILD_REPOSITORY_ID}/pullRequests/${{ parameters.pullRequestId }}/iterations?api-version=7.1"
-        iteration=$(curl -sS \
+        iterationsUrl="$baseUrl/_apis/git/repositories/${BUILD_REPOSITORY_ID}/pullRequests/${pullRequestId}/iterations?api-version=7.1"
+        iteration=$(curl --fail-with-body -sS \
           -H "Authorization: Bearer $SYSTEM_ACCESSTOKEN" \
           "$iterationsUrl" | jq '.value | max_by(.id) | .id')
         echo "Resolved latest PR iteration from API: $iteration"
@@ -84,7 +89,6 @@ steps:
           context: context,
           iterationId: ($iteration | tonumber)
         }
-        + (if $iteration != null then {iterationId: $iteration} else {} end)
       '
 
       payload=$(jq -n \

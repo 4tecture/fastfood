@@ -288,8 +288,6 @@ namespace FastFood.Observability.Common
                 services.Configure<EntityFrameworkInstrumentationOptions>(o =>
                 {
                     o.Filter = observabilityOptions.EntityFrameworkInstrumentation.Filter;
-                    o.SetDbStatementForText = observabilityOptions.EntityFrameworkInstrumentation.SetDbStatementForText;
-                    o.SetDbStatementForStoredProcedure = observabilityOptions.EntityFrameworkInstrumentation.SetDbStatementForStoredProcedure;
                     o.EnrichWithIDbCommand = observabilityOptions.EntityFrameworkInstrumentation.EnrichWithIDbCommand;
                 });
                 builder.AddEntityFrameworkCoreInstrumentation();
@@ -332,24 +330,6 @@ namespace FastFood.Observability.Common
 
             switch (observabilityOptions.UseTracingExporter)
             {
-                case TracingExporter.Zipkin:
-                    builder.AddZipkinExporter();
-
-                    builder.ConfigureServices(services =>
-                    {
-                        // Use IConfiguration binding for Zipkin exporter options.
-                        services.Configure<ZipkinExporterOptions>(o =>
-                        {
-                            o.Endpoint = observabilityOptions.ZipkinExporter.Endpoint;
-                            o.ExportProcessorType = observabilityOptions.ZipkinExporter.ExportProcessorType;
-                            o.HttpClientFactory  = observabilityOptions.ZipkinExporter.HttpClientFactory;
-                            o.BatchExportProcessorOptions = observabilityOptions.ZipkinExporter.BatchExportProcessorOptions;
-                            o.UseShortTraceIds = observabilityOptions.ZipkinExporter.UseShortTraceIds;
-                            o.MaxPayloadSizeInBytes = observabilityOptions.ZipkinExporter.MaxPayloadSizeInBytes;
-                        });
-                    });
-                    break;
-
                 case TracingExporter.Otlp:
                     builder.AddOtlpExporter(o =>
                     {

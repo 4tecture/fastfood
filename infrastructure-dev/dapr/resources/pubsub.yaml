@@ -10,7 +10,7 @@ spec:
   - name: host
     value: "amqp://rabbitmq:5672"
   - name: durable
-    value: "false"
+    value: "true"
   - name: deletedWhenUnused
     value: "false"
   - name: autoAck

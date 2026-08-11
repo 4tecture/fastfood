@@ -1,12 +1,18 @@
-{{- if not .Values.database.useInMemoryDatabase }}
+{{- if and .Values.migration.enabled (not .Values.database.useInMemoryDatabase) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: '{{ include "financeservice.fullname" . }}-dbdeployment-{{ .Release.Revision }}'
   labels:
     {{- include "financeservice.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation
 spec:
-  backoffLimit: 1
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: {{ .Values.migration.ttlSecondsAfterFinished }}
   template:
     metadata:
       labels:
@@ -16,17 +22,33 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "financeservice.deployServiceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: {{ .Chart.Name }}-dbdeployment
-          image: "{{ .Values.image.dbdeployclirepository }}:{{ .Values.image.tag  | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.dbdeployclirepository }}{{ if .Values.image.dbDeployDigest }}@{{ .Values.image.dbDeployDigest }}{{ else }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{ end }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
           command: ["dotnet"]
-          args: ["FinanceService.Db.Cli.dll", "deploy", "--connectionstring", $(CONNECTIONSTRING) , "--dacpacfile", "FinanceService.Db.dacpac"]
+          args: ["FinanceService.Db.Cli.dll", "deploy", "--connectionstring", "$(CONNECTIONSTRING)", "--dacpacfile", "FinanceService.Db.dacpac"]
+          resources:
+            {{- toYaml .Values.migration.resources | nindent 12 }}
           env:
             - name: CONNECTIONSTRING
+              {{- if .Values.database.existingSecret }}
               valueFrom:
                 secretKeyRef:
-                  name: financeservice-database
+                  name: {{ .Values.database.existingSecret }}
                   key: ConnectionStrings__FinanceDatabase
-      restartPolicy: Never  
+              {{- else }}
+              value: {{ required "database.connectionString or database.existingSecret is required when migrations are enabled" .Values.database.connectionString | quote }}
+              {{- end }}
+      restartPolicy: Never
 {{- end }}

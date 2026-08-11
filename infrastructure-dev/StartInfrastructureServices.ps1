@@ -1,6 +1,4 @@
-# docker create network fastfoodnetwork
-# docker run -d -p 5672:5672 -p 15672:15672 --name ff-rabbitmq rabbitmq:3-management-alpine #--network fastfoodnetwork
-# docker run -d -p 9411:9411 --name ff-zipkin openzipkin/zipkin #--network fastfoodnetwork
-# docker run -d -p 6379:6379 --name ff-redis redis:latest --network fastfoodnetwork
+$ErrorActionPreference = 'Stop'
 
-docker compose -f ../docker-compose.yml up -d rabbitmq placement redis zipkin dapr-dashboard
+Write-Warning 'This compatibility script starts only shared infrastructure. Use src/start-compose.ps1 for the full application.'
+& "$PSScriptRoot/../src/start-compose.ps1" -d rabbitmq redis placement scheduler sentry dapr-dashboard otel-collector grafana jaeger loki prometheus proxy docker-socket-proxy sqldb

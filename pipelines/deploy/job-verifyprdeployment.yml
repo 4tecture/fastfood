@@ -5,7 +5,7 @@ parameters:
   - name: pool
     type: object
     default:
-      vmImage: 'ubuntu-latest'
+      vmImage: 'ubuntu-24.04'
   - name: container
     type: string
     default: ''
@@ -33,6 +33,9 @@ parameters:
   - name: headedMode
     type: boolean
     default: false
+  - name: pullRequestId
+    type: string
+    default: '$(System.PullRequest.PullRequestId)'
 
 jobs:
   - job: ${{ parameters.jobName }}
@@ -55,6 +58,7 @@ jobs:
 
       - template: ../pullrequest/step-setprstatus.yml
         parameters:
+          pullRequestId: '${{ parameters.pullRequestId }}'
           state: '$(SystemTestsState)'
           description: '${{ parameters.serviceName }} PR Deployment Verification: $(SystemTestsState)'
           contextName: 'pr-deployment-${{ parameters.serviceName }}'

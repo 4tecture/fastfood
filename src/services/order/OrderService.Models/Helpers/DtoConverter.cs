@@ -7,12 +7,21 @@ public static class DtoConverter
 {
     public static OrderDto ToDto(this Order order)
     {
-        return new OrderDto(){ Id = order.Id, OrderReference = order.OrderReference, State = (OrderDtoState)order.State, Type = (OrderDtoType)order.Type, Items = order.Items?.Select(i => i.ToDto()).ToList(), Customer = order.Customer?.ToDto()};
+        return new OrderDto
+        {
+            Id = order.Id,
+            OrderReference = order.OrderReference,
+            State = (OrderDtoState)order.State,
+            Type = (OrderDtoType)order.Type,
+            Items = order.Items?.Select(i => i.ToDto()).ToList(),
+            Customer = order.Customer?.ToDto(),
+            CustomerComments = order.CustomerComments
+        };
     }
 
     public static OrderItemDto ToDto(this OrderItem item)
     {
-        return new OrderItemDto() { Id = item.Id, ItemPrice = item.ItemPrice, ProductDescription = item.ProductDescription, ProductId = item.ProductId, Quantity = item.Quantity, State = (OrderItemDtoState)item.State };
+        return new OrderItemDto { Id = item.Id, ItemPrice = item.ItemPrice, ProductDescription = item.ProductDescription, ProductId = item.ProductId, Quantity = item.Quantity, State = (OrderItemDtoState)item.State, CustomerComments = item.CustomerComments };
     }
     
     public static CustomerDto ToDto(this Customer customer)
@@ -22,17 +31,26 @@ public static class DtoConverter
     
     public static AddressDto ToDto(this Address address)
     {
-        return new AddressDto() { Street = address.Street, City = address.City, ZipCode = address.ZipCode, Country = address.Country };
+        return new AddressDto { Street = address.Street, StreetNumber = address.StreetNumber, City = address.City, ZipCode = address.ZipCode, Country = address.Country };
     }
     
     public static Order ToEntity(this OrderDto order)
     {
-        return new Order(){ Id = order.Id, OrderReference = order.OrderReference, State = (OrderState)order.State, Type = (OrderType)order.Type, Items = order.Items?.Select(i => i.ToEntity()).ToList(), Customer = order.Customer?.ToEntity()};
+        return new Order
+        {
+            Id = order.Id,
+            OrderReference = order.OrderReference,
+            State = (OrderState)order.State,
+            Type = (OrderType)order.Type,
+            Items = order.Items?.Select(i => i.ToEntity()).ToList(),
+            Customer = order.Customer?.ToEntity(),
+            CustomerComments = order.CustomerComments
+        };
     }
     
     public static OrderItem ToEntity(this OrderItemDto item)
     {
-        return new OrderItem() { Id = item.Id, ItemPrice = item.ItemPrice, ProductDescription = item.ProductDescription, ProductId = item.ProductId, Quantity = item.Quantity, State = (OrderItemState)item.State };
+        return new OrderItem { Id = item.Id, ItemPrice = item.ItemPrice, ProductDescription = item.ProductDescription, ProductId = item.ProductId, Quantity = item.Quantity, State = (OrderItemState)item.State, CustomerComments = item.CustomerComments };
     }
     
     public static Customer ToEntity(this CustomerDto customer)
@@ -42,7 +60,7 @@ public static class DtoConverter
     
     public static Address ToEntity(this AddressDto address)
     {
-        return new Address() { Street = address.Street, City = address.City, ZipCode = address.ZipCode, Country = address.Country };
+        return new Address { Street = address.Street, StreetNumber = address.StreetNumber, City = address.City, ZipCode = address.ZipCode, Country = address.Country };
     }
     
    

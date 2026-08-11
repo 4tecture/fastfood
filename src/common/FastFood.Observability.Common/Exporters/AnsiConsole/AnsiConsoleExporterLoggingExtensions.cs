@@ -28,8 +28,8 @@ namespace FastFood.Observability.Common.Exporters.AnsiConsole
         /// </summary>
         public static OpenTelemetryLoggerOptions AddAnsiConsoleExporter(
             this OpenTelemetryLoggerOptions loggerOptions,
-            Action<ConsoleExporterOptions> configure,
-            AnsiConsoleTheme theme = null,
+            Action<ConsoleExporterOptions>? configure,
+            AnsiConsoleTheme? theme = null,
             bool useUtcTimestamp = true)
         {
             if (loggerOptions == null)

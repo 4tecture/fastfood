@@ -19,7 +19,6 @@ namespace FastFood.Observability.Common.Options
 
         public SamplerType SamplerType { get; set; } = SamplerType.AlwaysOffSampler;
         public double SamplingRatio { get; set; } = 0.01;
-        public ZipkinExporterOptions ZipkinExporter { get; set; } = new ZipkinExporterOptions();
         public OtlpExporterOptions OtlpExporter { get; set; } = new OtlpExporterOptions();
         
         public LogLevelsOptions LogLevels { get; set; } = new LogLevelsOptions(){ 

@@ -10,9 +10,11 @@ image:
   repository: 4tectureregistry.azurecr.io/fastfood-financeservice
   dbdeployclirepository: 4tectureregistry.azurecr.io/fastfood-financeservice-dbdeployment
   # This sets the pull policy for images.
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: ""
+  digest: ""
+  dbDeployDigest: ""
 
 # This is for the secretes for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
@@ -25,6 +27,9 @@ serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Automatically mount a ServiceAccount's API credentials?
+  # Dapr components from the previous shared-environment release may still
+  # use the Kubernetes secret store. Keep rolling service upgrades compatible
+  # until that component migration has reached every environment.
   automount: true
   # Annotations to add to the service account
   annotations: {}
@@ -36,7 +41,7 @@ deployServiceAccount:
   # Specifies whether a service account should be created
   create: true
   # Automatically mount a ServiceAccount's API credentials?
-  automount: true
+  automount: false
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
@@ -49,20 +54,25 @@ podAnnotations:
   dapr.io/enabled: "true"
   dapr.io/app-id: "financeservice"
   dapr.io/app-port: "8080"
+  dapr.io/disable-builtin-k8s-secret-store: "true"
+  dapr.io/sidecar-cpu-request: "100m"
+  dapr.io/sidecar-memory-request: "128Mi"
+  dapr.io/sidecar-cpu-limit: "500m"
+  dapr.io/sidecar-memory-limit: "256Mi"
 # This is for setting Kubernetes Labels to a Pod.
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 podLabels: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
 
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
 
 # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
 service:
@@ -82,13 +92,19 @@ ingress:
     - host: chart-example.local
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
 
-resources: {}
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
@@ -103,18 +119,24 @@ resources: {}
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:
   httpGet:
-    path: /healthz
+    path: /health/live
     port: http
 readinessProbe:
   httpGet:
-    path: /healthz
+    path: /health/ready
     port: http
+startupProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  failureThreshold: 30
+  periodSeconds: 2
 
 #This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
 autoscaling:
   enabled: false
   minReplicas: 1
-  maxReplicas: 100
+  maxReplicas: 10
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
@@ -137,25 +159,40 @@ tolerations: []
 
 affinity: {}
 
-secrets:
-# Optionally specify a set of secret objects whose values
-# will be injected as environment variables by default.
-# You should add this section to a file like secrets.yaml
-# that is explicitly NOT committed to source code control
-# and then include it as part of your helm install step.
-# ref: https://kubernetes.io/docs/concepts/configuration/secret/
-#
-# This creates a secret "mysecret" and injects "mypassword"
-# as the environment variable MYSECRET_MYPASSWORD=123.
-# mysecret:
-#   mypassword: 123
+terminationGracePeriodSeconds: 30
+topologySpreadConstraints: []
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+networkPolicy:
+  enabled: false
+  ingressNamespaceSelector: {}
 
-#envvariables:
-#  FeatureManagement__UseInMemoryDatabase: VALUE_TO_OVERRIDE
+migration:
+  enabled: true
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 3600
+  resources:
+    requests:
+      # Reserve enough capacity for DacFx model comparison without making the
+      # one-shot migration unnecessarily difficult to schedule.
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      # Bound faulty migrations while retaining headroom for short DacFx peaks.
+      cpu: "1"
+      memory: 1Gi
 
 database:
-  connectionString: VALUE_TO_OVERRIDE
+  # A credential-free workload-identity connection string may be supplied
+  # directly. Use existingSecret when the connection string contains secrets.
+  connectionString: ""
   useInMemoryDatabase: false
+  existingSecret: ""
+  # Demo-only escape hatch. Prefer an externally managed Secret because Helm
+  # stores rendered values in release history.
+  createSecret: false
 
 workloadIdentity:
   enabled: false
@@ -177,7 +214,7 @@ observability:
   # The name of the service being observed.
   serviceName: FinanceService
   
-  # Type of exporter to use for tracing. Supported values: "zipkin", "otlp", "console", "none".
+  # Type of exporter to use for tracing. Supported values: "otlp", "console", "none".
   useTracingExporter: otlp
 
   # Type of exporter to use for metrics. Supported values: "prometheus", "otlp", "console", "none".
@@ -210,10 +247,6 @@ observability:
   # Ratio for sampling when using "TraceIdRatioBasedSampler". Value between 0 and 1.
   samplingRatio: 0.1
   
-  zipkinExporter:
-    # Endpoint for the Zipkin exporter.
-    endpoint: http://zipkin:9411/api/v2/spans
-
   otlpExporter:
     # Endpoint for the OTLP exporter.
     endpoint: http://otel-collector.monitoring.svc.cluster.local:4317

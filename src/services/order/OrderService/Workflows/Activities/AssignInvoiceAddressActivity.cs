@@ -30,14 +30,14 @@ public partial class AssignInvoiceAddressActivity : WorkflowActivity<AssignInvoi
             order.Customer.InvoiceAddress = input.Address;
             await _orderStorage.UpdateOrder(order);
             await _daprClient.PublishEventAsync(FastFoodConstants.PubSubName, FastFoodConstants.EventNames.OrderUpdated, order.ToDto());
-            LogAssignedInvoiceAddress(context.InstanceId, order.Id, order.Customer.InvoiceAddress.ToString());
+            LogAssignedInvoiceAddress(context.InstanceId, order.Id, order.Customer.InvoiceAddress.ToString() ?? string.Empty);
         }
         else
         {
-            LogAssignedInvoiceAddressFailed(context.InstanceId, input.OrderId, input.Address.ToString());
+            LogAssignedInvoiceAddressFailed(context.InstanceId, input.OrderId, input.Address.ToString() ?? string.Empty);
         }
 
-        return order;
+        return order ?? throw new InvalidOperationException($"Order {input.OrderId} was not found.");
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "[Workflow {instanceId}] Assigned invoice address {address} to order {orderId}")]

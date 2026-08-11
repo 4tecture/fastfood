@@ -80,6 +80,12 @@ public class KitchenMonitorPage : BasePage
             // Get the product name from data attribute
             var productName = await itemLocator.GetAttributeAsync("data-product-name") ?? "";
             productName = productName.Trim();
+
+            var quantityText = itemId != null
+                ? await itemLocator.GetByTestId($"item-quantity-{itemId}").TextContentAsync() ?? ""
+                : "";
+            var quantityMatch = global::System.Text.RegularExpressions.Regex.Match(quantityText, @"\d+");
+            var quantity = quantityMatch.Success ? int.Parse(quantityMatch.Value) : 1;
             
             // Check if item is finished
             var finishedLabel = itemId != null ? itemLocator.Page.GetByTestId($"item-finished-{itemId}") : null;
@@ -91,7 +97,7 @@ public class KitchenMonitorPage : BasePage
                 {
                     ItemId = itemId,
                     ProductName = productName,
-                    Quantity = 1, // Kitchen doesn't display quantity in the current UI
+                    Quantity = quantity,
                     IsFinished = isFinished
                 });
             }

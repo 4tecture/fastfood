@@ -66,7 +66,7 @@ steps:
 
       echo "=== Preparing video directory ==="
       mkdir -p "$(Agent.TempDirectory)/Videos"
-      chmod 777 "$(Agent.TempDirectory)/Videos"
+      chmod 700 "$(Agent.TempDirectory)/Videos"
     displayName: 'Create and set permissions for test execution'
     target: host
 

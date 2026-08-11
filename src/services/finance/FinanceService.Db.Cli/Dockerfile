@@ -1,18 +1,21 @@
 ﻿ARG IMAGE_NET_ASPNET=mcr.microsoft.com/dotnet/aspnet
 ARG IMAGE_NET_SDK=mcr.microsoft.com/dotnet/sdk
-ARG IMAGE_NET_ASPNET_VERSION=10.0.2
-ARG IMAGE_NET_SDK_VERSION=10.0.102
+ARG IMAGE_NET_ASPNET_VERSION=10.0.10
+ARG IMAGE_NET_SDK_VERSION=10.0.302
 
 FROM ${IMAGE_NET_ASPNET}:${IMAGE_NET_ASPNET_VERSION} AS base
 WORKDIR /app
+USER $APP_UID
 
 FROM ${IMAGE_NET_SDK}:${IMAGE_NET_SDK_VERSION} AS build
 WORKDIR /src
+COPY ["Directory.Build.props", "."]
 COPY ["services/finance/FinanceService.Db/FinanceService.Db.sqlproj", "services/finance/FinanceService.Db/"]
-COPY ["services/finance/FinanceService.Db.Cli/FinanceService.Db.Cli.csproj", "services/finance/FinanceService.Db.Cli/"]
+COPY ["services/finance/FinanceService.Db.Cli/FinanceService.Db.Cli.csproj", "services/finance/FinanceService.Db.Cli/packages.lock.json", "services/finance/FinanceService.Db.Cli/"]
+ENV RestoreLockedMode=true
 
 RUN --mount=type=secret,id=nugetconfig,required=false \
-    sh -c 'if [ -f /run/secrets/nugetconfig ]; then \
+    sh -c 'set -eu; if [ -f /run/secrets/nugetconfig ]; then \
               dotnet restore --configfile /run/secrets/nugetconfig "services/finance/FinanceService.Db/FinanceService.Db.sqlproj"; \
               dotnet restore --configfile /run/secrets/nugetconfig "services/finance/FinanceService.Db.Cli/FinanceService.Db.Cli.csproj"; \
           else \

@@ -50,4 +50,13 @@ public class WelcomePage : BasePage
         var count = await Page.GetByTestId("welcome-screen").CountAsync();
         return count > 0;
     }
+
+    /// <summary>
+    /// Reports whether the POS application is currently using its dark theme.
+    /// </summary>
+    public async Task<bool> IsDarkModeEnabledAsync()
+    {
+        var classes = await Page.GetByTestId("pos-app").GetAttributeAsync("class") ?? "";
+        return classes.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains("dark");
+    }
 }

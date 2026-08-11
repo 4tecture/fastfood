@@ -2,8 +2,8 @@
 # These arguments allow us to easily change the base images if needed.
 ARG IMAGE_NET_ASPNET=mcr.microsoft.com/dotnet/aspnet
 ARG IMAGE_NET_SDK=mcr.microsoft.com/dotnet/sdk
-ARG IMAGE_NET_ASPNET_VERSION=10.0.2
-ARG IMAGE_NET_SDK_VERSION=10.0.102
+ARG IMAGE_NET_ASPNET_VERSION=10.0.10
+ARG IMAGE_NET_SDK_VERSION=10.0.302
 
 # Allow a suffix to be appended to the final ASP.NET image for development customization.
 # This can be overridden at build time with --build-arg ASPNET_SUFFIX=-noble-chiseled-extra
@@ -14,11 +14,11 @@ ARG ASPNET_SUFFIX=-noble-chiseled-extra
 # ---------------------------------------------------------------------
 
 # Use the official ASP.NET runtime image with the specified version.
-FROM ${IMAGE_NET_ASPNET}:${IMAGE_NET_ASPNET_VERSION} AS base
+FROM ${IMAGE_NET_ASPNET}:${IMAGE_NET_ASPNET_VERSION}${ASPNET_SUFFIX} AS base
 # Set the working directory in the container where the app will run.
 WORKDIR /app
 EXPOSE 8080
-EXPOSE 8081
+USER $APP_UID
 
 # ---------------------------------------------------------------------
 # Stage 2: Build the application
@@ -28,18 +28,20 @@ EXPOSE 8081
 FROM ${IMAGE_NET_SDK}:${IMAGE_NET_SDK_VERSION} AS build
 # Set the working directory where the source code will be copied.
 WORKDIR /src
+COPY ["Directory.Build.props", "."]
 
 # Copy project files for different parts of the solution to enable caching of the restore step.
-COPY ["services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/FrontendCustomerOrderStatus.csproj", "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/"]
-COPY ["common/FastFood.Common/FastFood.Common.csproj", "common/FastFood.Common/"]
-COPY ["common/FastFood.Observability.Common/FastFood.Observability.Common.csproj", "common/FastFood.Observability.Common/"]
-COPY ["services/order/OrderService.Common/OrderService.Common.csproj", "services/order/OrderService.Common/"]
-COPY ["services/frontendcustomerorderstatus/FrontendCustomerOrderStatus.Unit.Tests/FrontendCustomerOrderStatus.Unit.Tests.csproj", "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus.Unit.Tests/"]
+COPY ["services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/FrontendCustomerOrderStatus.csproj", "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/packages.lock.json", "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/"]
+COPY ["common/FastFood.Common/FastFood.Common.csproj", "common/FastFood.Common/packages.lock.json", "common/FastFood.Common/"]
+COPY ["common/FastFood.Observability.Common/FastFood.Observability.Common.csproj", "common/FastFood.Observability.Common/packages.lock.json", "common/FastFood.Observability.Common/"]
+COPY ["services/order/OrderService.Common/OrderService.Common.csproj", "services/order/OrderService.Common/packages.lock.json", "services/order/OrderService.Common/"]
+COPY ["services/frontendcustomerorderstatus/FrontendCustomerOrderStatus.Unit.Tests/FrontendCustomerOrderStatus.Unit.Tests.csproj", "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus.Unit.Tests/packages.lock.json", "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus.Unit.Tests/"]
+ENV RestoreLockedMode=true
 
 # Run dotnet restore for each project.
 # If a secret NuGet configuration file is provided, it will be used during restore.
 RUN --mount=type=secret,id=nugetconfig,required=false \
-    sh -c 'if [ -f /run/secrets/nugetconfig ]; then \
+    sh -c 'set -eu; if [ -f /run/secrets/nugetconfig ]; then \
               dotnet restore --configfile /run/secrets/nugetconfig "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/FrontendCustomerOrderStatus.csproj"; \
               dotnet restore --configfile /run/secrets/nugetconfig "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus.Unit.Tests/FrontendCustomerOrderStatus.Unit.Tests.csproj"; \
           else \
@@ -66,12 +68,9 @@ ARG BUILDID=localbuild
 LABEL testresults=${BUILDID}
 
 # Execute tests for FrontendCustomerOrderStatus.Unit.Tests with code coverage.
-RUN dotnet test --no-build -c Release --results-directory /testresults \
+RUN dotnet test services/frontendcustomerorderstatus/FrontendCustomerOrderStatus.Unit.Tests/FrontendCustomerOrderStatus.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
     --logger "trx;LogFileName=test_results_frontendcustomerorderstatus.trx" \
-    /p:CollectCoverage=true \
-    /p:CoverletOutputFormat=json%2cCobertura \
-    /p:CoverletOutput=/testresults/coverage/ \
-    -p:MergeWith=/testresults/coverage/coverage.json services/frontendcustomerorderstatus/FrontendCustomerOrderStatus.Unit.Tests/FrontendCustomerOrderStatus.Unit.Tests.csproj
+    --collect:"XPlat Code Coverage"
 
 # ---------------------------------------------------------------------
 # Stage 4: Publish the application
@@ -80,7 +79,7 @@ RUN dotnet test --no-build -c Release --results-directory /testresults \
 FROM build AS publish
 # Publish the FrontendCustomerOrderStatus project in Release mode to the /app/publish directory.
 # The /p:UseAppHost=false flag prevents the generation of platform-specific executables.
-RUN dotnet publish "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/FrontendCustomerOrderStatus.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/FrontendCustomerOrderStatus.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
 
 # Modify file permissions: directories get 755 and files get 644 for better security and accessibility.
 RUN find /app/publish -type d -exec chmod 755 {} \; && \
@@ -90,7 +89,7 @@ RUN find /app/publish -type d -exec chmod 755 {} \; && \
 # Stage 5: Build the client application
 # ---------------------------------------------------------------------
 
-FROM node:24 AS client-build
+FROM node:24.19.0-bookworm-slim AS client-build
 WORKDIR /src
 # Use separate COPY commands to ensure no issues with file existence
 COPY services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/clientapp/package.json services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/clientapp/
@@ -98,10 +97,10 @@ COPY services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/clientapp/
 WORKDIR /src/services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/clientapp
 # If a secret npmrc configuration file is provided, it will be used during npm install.
 RUN --mount=type=secret,id=npmrc,required=false \
-    sh -c 'if [ -f /run/secrets/npmrc ]; then \
-              npm install --userconfig /run/secrets/npmrc; \
+    sh -c 'set -eu; if [ -f /run/secrets/npmrc ]; then \
+              npm ci --userconfig /run/secrets/npmrc; \
           else \
-              npm install; \
+              npm ci; \
           fi'
 COPY services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/clientapp .
 RUN npm run build
@@ -112,7 +111,7 @@ RUN npm run build
 # ---------------------------------------------------------------------
 
 # Use the ASP.NET image with optional suffix applied.
-FROM ${IMAGE_NET_ASPNET}:${IMAGE_NET_ASPNET_VERSION}${ASPNET_SUFFIX} AS final
+FROM base AS final
 # Set the working directory inside the container where the app will run.
 WORKDIR /app
 

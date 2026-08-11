@@ -1,24 +1,24 @@
 dependencies:
+- name: daprenv
+  repository: file://../daprenv
+  version: 0.1.0
 - name: financeservice
-  repository: file://../../FinanceService/chart/financeservice
-  version: 0.1.0
+  repository: file://../../services/finance/FinanceService/chart/financeservice
+  version: 0.2.0
 - name: frontendcustomerorderstatus
-  repository: file://../../FrontendCustomerOrderStatus/chart/frontendcustomerorderstatus
-  version: 0.1.0
+  repository: file://../../services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/chart/frontendcustomerorderstatus
+  version: 0.2.0
 - name: frontendkitchenmonitor
-  repository: file://../../FrontendKitchenMonitor/chart/frontendkitchenmonitor
-  version: 0.1.0
+  repository: file://../../services/frontendkitchenmonitor/FrontendKitchenMonitor/chart/frontendkitchenmonitor
+  version: 0.2.0
 - name: frontendselfservicepos
-  repository: file://../../FrontendSelfServicePos/chart/frontendselfservicepos
-  version: 0.1.0
+  repository: file://../../services/frontendselfservicepos/FrontendSelfServicePos/chart/frontendselfservicepos
+  version: 0.2.0
 - name: kitchenservice
-  repository: file://../../KitchenService/chart/kitchenservice
-  version: 0.1.0
+  repository: file://../../services/kitchen/KitchenService/chart/kitchenservice
+  version: 0.2.0
 - name: orderservice
-  repository: file://../../OrderService/chart/orderservice
-  version: 0.1.0
-- name: orderserviceactors
-  repository: file://../../OrderService.Actors/chart/orderserviceactors
-  version: 0.1.0
-digest: sha256:3ff0098c6b53c713cb95514827531b588d514ad9c2569ea7bc6ff7de367702f7
-generated: "2024-11-26T13:20:12.140436+01:00"
+  repository: file://../../services/order/OrderService/chart/orderservice
+  version: 0.2.0
+digest: sha256:fe213e8f6816b7479a3b6fee4ca2478d22a533d8546f895fa66094b51ae4c6e1
+generated: "2026-08-10T14:48:21.845904+02:00"

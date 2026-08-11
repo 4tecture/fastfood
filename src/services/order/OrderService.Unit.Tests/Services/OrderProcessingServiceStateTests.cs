@@ -1,5 +1,6 @@
 using Dapr.Client;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using FastFood.FeatureManagement.Common.Services;
 using FinanceService.Observability;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ namespace OrderService.Unit.Tests.Services;
 public class OrderProcessingServiceStateTests
 {
     private readonly Mock<DaprClient> _daprClientMock;
+    private readonly Mock<IDaprServiceInvoker> _serviceInvokerMock;
     private readonly Mock<IOrderEventRouter> _orderEventRouterMock;
     private readonly IOrderServiceObservability _observability;
     private readonly Mock<ILogger<OrderProcessingServiceState>> _loggerMock;
@@ -24,6 +26,7 @@ public class OrderProcessingServiceStateTests
     public OrderProcessingServiceStateTests()
     {
         _daprClientMock = new Mock<DaprClient>();
+        _serviceInvokerMock = new Mock<IDaprServiceInvoker>();
         _orderEventRouterMock = new Mock<IOrderEventRouter>();
         _observability = new OrderServiceObservability("OrderService", "OrderService");
         _loggerMock = new Mock<ILogger<OrderProcessingServiceState>>();
@@ -32,6 +35,7 @@ public class OrderProcessingServiceStateTests
         
         _service = new OrderProcessingServiceState(
             _daprClientMock.Object,
+            _serviceInvokerMock.Object,
             _orderEventRouterMock.Object,
             _observability,
             _loggerMock.Object,
@@ -420,7 +424,7 @@ public class OrderProcessingServiceStateTests
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _daprClientMock.Setup(m => m.InvokeMethodAsync<object>(
+        _serviceInvokerMock.Setup(m => m.InvokeMethodAsync<object>(
             It.IsAny<HttpRequestMessage>(),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(null!);
@@ -569,7 +573,7 @@ public class OrderProcessingServiceStateTests
             It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _daprClientMock.Setup(m => m.InvokeMethodAsync<object>(
+        _serviceInvokerMock.Setup(m => m.InvokeMethodAsync<object>(
             It.IsAny<HttpRequestMessage>(),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(null!);

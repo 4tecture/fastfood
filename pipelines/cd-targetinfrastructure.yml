@@ -45,7 +45,7 @@ stages:
           chartPackage: '$(helmChartArtifactDownloadPath)'
           kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
           updateBuildNumber: true
-          
+          resolveImageDigests: false
           tokenizerSecrets:
             - redisPassword
           pool:
@@ -72,9 +72,7 @@ stages:
           chartPackage: '$(helmChartArtifactDownloadPath)'
           kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
           updateBuildNumber: true
-          
-          tokenizerSecrets:
-            - redisPassword
+          resolveImageDigests: false
           pool:
             ${{ if eq(variables['poolMode'], 'HostedAgent') }}:
               vmImage: ${{ variables['poolVmImage'] }}
@@ -83,12 +81,14 @@ stages:
 
   - stage: PullRequest
     dependsOn: []
-    condition: and(succeeded(), ne(variables['System.PullRequest.PullRequestId'], ''))
+    condition: and(succeeded(), startsWith(variables['resources.pipeline.CIBuild.sourceBranch'], 'refs/pull/'))
     variables:
       - name: stagename
         value: pr
+      - name: pullRequestId
+        value: $[replace(replace(variables['resources.pipeline.CIBuild.sourceBranch'], 'refs/pull/', ''), '/merge', '')]
       - name: namespace
-        value: $(stagename)-$(System.PullRequest.PullRequestId)
+        value: $(stagename)-$(pullRequestId)
     jobs:
       - template: deploy/job-deployservicetok8s.yml
         parameters:
@@ -99,6 +99,9 @@ stages:
           chartPackage: '$(helmChartArtifactDownloadPath)'
           kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
           updateBuildNumber: true
+          resolveImageDigests: false
+          bootstrapPrEnvironment: true
+          pullRequestId: '$(pullRequestId)'
           
           tokenizerSecrets:
             - redisPassword

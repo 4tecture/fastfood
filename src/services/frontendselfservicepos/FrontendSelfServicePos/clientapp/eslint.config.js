@@ -11,7 +11,7 @@ export default [
       parser: vueParser,
       parserOptions: {
         parser: babelParser,
-        ecmaVersion: 2020,
+        ecmaVersion: 'latest',
         sourceType: 'module',
       },
       globals: {

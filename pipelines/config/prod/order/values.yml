@@ -1,3 +1,25 @@
 image:
   repository: __azureContainerRegistry__/orderservice
   tag: __artifactVersion__
+  digest: __imageDigest__
+replicaCount: 2
+autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 10 }
+podDisruptionBudget: { enabled: true, minAvailable: 1 }
+networkPolicy:
+  enabled: true
+  ingressNamespaceSelector: { kubernetes.io/metadata.name: ingress-nginx }
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels: { app.kubernetes.io/name: orderservice }
+orderserviceactors:
+  image:
+    repository: __azureContainerRegistry__/orderservice-actors
+    tag: __artifactVersion__
+    digest: __actorsImageDigest__
+  replicaCount: 2
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+  podDisruptionBudget: { enabled: true, minAvailable: 1 }
+  networkPolicy: { enabled: true }

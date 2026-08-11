@@ -18,15 +18,15 @@ parameters:
   - name: installKubectl
     type: boolean
     default: true
+  - name: resolveImageDigests
+    type: boolean
+    default: true
   - name: helmVersion
     type: string
-    default: latest
+    default: 4.2.3
   - name: kubectlVersion
     type: string
-    default: latest
-  - name: createNamespace
-    type: boolean
-    default: false
+    default: 1.35.7
   - name: condition
     type: string
     default: 'succeeded()'
@@ -45,29 +45,103 @@ steps:
       condition: ${{ parameters.condition }}
       inputs:
         helmVersionToInstall: '${{ parameters.helmVersion }}'
-  
-  - ${{ if eq(parameters.createNamespace, true) }}:
-    - task: Kubernetes@1
-      displayName: 'Create Namespace'
+
+  - ${{ if eq(parameters.resolveImageDigests, true) }}:
+    - bash: |
+        set -euo pipefail
+
+        FASTFOOD_METADATA_ROOT='$(Pipeline.Workspace)'
+        FASTFOOD_MAIN_METADATA="$(find "${FASTFOOD_METADATA_ROOT}" -type f -path '*/image-metadata/${{ parameters.releaseName }}.json' -print -quit)"
+        if [ -z "${FASTFOOD_MAIN_METADATA}" ]; then
+          echo "Image metadata for ${{ parameters.releaseName }} was not downloaded." >&2
+          exit 1
+        fi
+
+        set_digest_variable() {
+          FASTFOOD_METADATA_FILE="$1"
+          FASTFOOD_VARIABLE_NAME="$2"
+          FASTFOOD_DIGEST="$(jq -er '."containerimage.digest" | select(test("^sha256:[a-f0-9]{64}$"))' "${FASTFOOD_METADATA_FILE}")"
+          echo "##vso[task.setvariable variable=${FASTFOOD_VARIABLE_NAME}]${FASTFOOD_DIGEST}"
+        }
+
+        set_digest_variable "${FASTFOOD_MAIN_METADATA}" imageDigest
+
+        FASTFOOD_ACTORS_METADATA="$(find "${FASTFOOD_METADATA_ROOT}" -type f -path '*/image-metadata/${{ parameters.releaseName }}-actors.json' -print -quit)"
+        if [ -n "${FASTFOOD_ACTORS_METADATA}" ]; then
+          set_digest_variable "${FASTFOOD_ACTORS_METADATA}" actorsImageDigest
+        fi
+
+        FASTFOOD_DB_DEPLOY_METADATA="$(find "${FASTFOOD_METADATA_ROOT}" -type f -path '*/image-metadata/${{ parameters.releaseName }}-dbdeployment.json' -print -quit)"
+        if [ -n "${FASTFOOD_DB_DEPLOY_METADATA}" ]; then
+          set_digest_variable "${FASTFOOD_DB_DEPLOY_METADATA}" dbDeployImageDigest
+        fi
+      displayName: 'Resolve immutable image digests from CI metadata'
       condition: ${{ parameters.condition }}
-      inputs:
-        connectionType: 'Kubernetes Service Connection'
-        kubernetesServiceEndpoint: ${{ parameters.kubernetesDeploymentServiceConnection }}
-        command: create
-        arguments: 'namespace ${{ parameters.clusterNamespace }}'
+
+  - ${{ if eq(parameters.resolveImageDigests, false) }}:
+    - bash: |
+        set -euo pipefail
+
+        FASTFOOD_VALUES_FILE='${{ parameters.releaseValuesFile }}'
+        # PR initialization intentionally installs the latest successful main
+        # build by its stable version tag. Empty digest values make each chart
+        # use image.repository:image.tag without leaving unresolved tokens.
+        for FASTFOOD_TOKEN in \
+          '__imageDigest__' \
+          '__actorsImageDigest__' \
+          '__dbDeployImageDigest__'; do
+          FASTFOOD_TOKEN="$FASTFOOD_TOKEN" FASTFOOD_TOKEN_VALUE='""' \
+            perl -pi -e 's/\Q$ENV{FASTFOOD_TOKEN}\E/$ENV{FASTFOOD_TOKEN_VALUE}/g' \
+            "$FASTFOOD_VALUES_FILE"
+        done
+      displayName: 'Use stable image version tags'
+      condition: ${{ parameters.condition }}
 
   - template: ../general/step-tokenizer.yml
     parameters:
       filePattern: '${{ parameters.releaseValuesFile }}'
       secrets: ${{ parameters.tokenizerSecrets }}
       condition: ${{ parameters.condition }}
+
+  # The long-lived build-agent image may still contain Helm 3 while a newer
+  # image is being rolled out with Helm 4. Select the equivalent rollback and
+  # wait flags for the Helm binary this job will actually execute.
+  - bash: |
+      set -euo pipefail
+
+      helm version --short | {
+        read -r FASTFOOD_HELM_VERSION
+        if [[ ! "${FASTFOOD_HELM_VERSION}" =~ ^v?([0-9]+) ]]; then
+          echo "Unable to parse Helm version: ${FASTFOOD_HELM_VERSION}" >&2
+          exit 1
+        fi
+
+        case "${BASH_REMATCH[1]}" in
+          3)
+            FASTFOOD_HELM_SAFETY_ARGS='--atomic --wait'
+            ;;
+          4)
+            # Helm 4 replaced --atomic and its legacy waiter avoids the watcher
+            # regression that can leave healthy Deployments reported InProgress.
+            FASTFOOD_HELM_SAFETY_ARGS='--rollback-on-failure --wait=legacy'
+            ;;
+          *)
+            echo "Unsupported Helm version: ${FASTFOOD_HELM_VERSION}" >&2
+            exit 1
+            ;;
+        esac
+
+        echo "Using Helm ${FASTFOOD_HELM_VERSION} with ${FASTFOOD_HELM_SAFETY_ARGS}"
+        echo "##vso[task.setvariable variable=fastFoodHelmSafetyArgs]${FASTFOOD_HELM_SAFETY_ARGS}"
+      }
+    displayName: 'Select Helm-compatible deployment flags'
+    condition: ${{ parameters.condition }}
   
   # Helm deploy - with proper condition based on params
-  - task: HelmDeploy@0
+  - task: HelmDeploy@1
     displayName: 'Helm upgrade ${{ parameters.releaseName }}'
-    # If deployOnlyIfNotExist is true, only deploy when release doesn't exist
-    # Otherwise, use the generic condition parameter
     condition: ${{ parameters.condition }}
+    retryCountOnTaskFailure: 2
     inputs:
       connectionType: 'Kubernetes Service Connection'
       kubernetesServiceConnection: ${{ parameters.kubernetesDeploymentServiceConnection }}
@@ -78,3 +152,7 @@ steps:
       releaseName: ${{ parameters.releaseName }}
       valueFile: ${{ parameters.releaseValuesFile }}
       install: true
+      # The version-aware arguments above own wait behavior; prevent the task
+      # from injecting an additional bare --wait flag.
+      waitForExecution: false
+      arguments: '$(fastFoodHelmSafetyArgs) --timeout 10m --history-max 10 --cleanup-on-fail'

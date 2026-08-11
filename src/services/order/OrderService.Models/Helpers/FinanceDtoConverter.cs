@@ -7,7 +7,7 @@ public static class FinanceDtoConverter
 {
     public static OrderDto ToFinanceDto(this Order order)
     {
-        return new OrderDto(){ Id = order.Id, State = (OrderDtoState)order.State, Type = (OrderDtoType)order.Type, Items = order.Items?.Select(i => i.ToFinanceDto()).ToList(), Customer = order.Customer?.ToFinanceDto()};
+        return new OrderDto { Id = order.Id, State = (OrderDtoState)order.State, Type = (OrderDtoType)order.Type, Items = order.Items?.Select(i => i.ToFinanceDto()).ToList(), Customer = order.Customer?.ToFinanceDto(), CustomerComments = order.CustomerComments };
     }
     
     /// <summary>
@@ -23,13 +23,14 @@ public static class FinanceDtoConverter
             Items = order.Items?.Select(i => i.ToFinanceDto()).ToList(), 
             Customer = order.Customer?.ToFinanceDto(),
             ServiceFee = serviceFee,
-            Discount = discount
+            Discount = discount,
+            CustomerComments = order.CustomerComments
         };
     }
 
     public static OrderItemDto ToFinanceDto(this OrderItem item)
     {
-        return new OrderItemDto() { Id = item.Id, ItemPrice = item.ItemPrice, ProductDescription = item.ProductDescription, ProductId = item.ProductId, Quantity = item.Quantity, State = (OrderItemDtoState)item.State };
+        return new OrderItemDto { Id = item.Id, ItemPrice = item.ItemPrice, ProductDescription = item.ProductDescription, ProductId = item.ProductId, Quantity = item.Quantity, State = (OrderItemDtoState)item.State, CustomerComments = item.CustomerComments };
     }
     
     public static CustomerDto ToFinanceDto(this Customer customer)
@@ -39,6 +40,6 @@ public static class FinanceDtoConverter
     
     public static AddressDto ToFinanceDto(this Address address)
     {
-        return new AddressDto() { Street = address.Street, City = address.City, ZipCode = address.ZipCode, Country = address.Country };
+        return new AddressDto { Street = address.Street, StreetNumber = address.StreetNumber, City = address.City, ZipCode = address.ZipCode, Country = address.Country };
     }
 }

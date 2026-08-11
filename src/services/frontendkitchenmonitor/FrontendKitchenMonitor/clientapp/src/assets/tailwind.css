@@ -1,1 +1,37 @@
 @import 'tailwindcss';
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('/fonts/bricolage-grotesque-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paytone One';
+  src: url('/fonts/paytone-one-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --kw-ground: #171411;
+  --kw-panel: #221e1a;
+  --kw-panel-2: #2b2520;
+  --kw-ink: #fff8e9;
+  --kw-muted: #cbbbad;
+  --kw-rule: #4c4038;
+  --kw-accent: #ff5a3d;
+  --kw-accent-hover: #ff765f;
+  --kw-highlight: #ffd43b;
+  --kw-highlight-ink: #201b18;
+  --kw-done: #9fcd85;
+  --kw-error: #ff8b78;
+  --kw-focus: #7db5ff;
+}

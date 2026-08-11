@@ -36,7 +36,7 @@ parameters:
   - name: pool
     type: object
     default:
-      vmImage: 'ubuntu-latest'
+      vmImage: 'ubuntu-24.04'
   - name: container
     type: string
     default: ''
@@ -88,12 +88,22 @@ jobs:
             netCoreSdkVersion: ${{ parameters.netCoreSdkVersion }}
             ${{ if ne(parameters.container, '') }}:
               runOnHost: true
+      - task: PublishPipelineArtifact@1
+        displayName: 'Publish image digests and build attestations metadata'
+        inputs:
+          targetPath: '$(Build.ArtifactStagingDirectory)/image-metadata'
+          artifact: 'image-metadata'
       - template: ../build/step-buildhelmpackage.yml
         parameters:
           helmVersion: ${{ parameters.helmVersion }}
           artifactStagingDirectory: ${{ parameters.artifactStagingDirectory }}
           artifactName: ${{ parameters.artifactName }}
           chartPath: ${{ parameters.chartPath }}
+          # The purpose-built worker already contains the pinned Helm and
+          # kubectl versions. Host jobs retain the portable installer steps.
+          ${{ if ne(parameters.container, '') }}:
+            installHelm: false
+            installKubectl: false
       - template: ../build/step-buildsystemtests.yml
         parameters:
           displayName: 'Build System Tests'

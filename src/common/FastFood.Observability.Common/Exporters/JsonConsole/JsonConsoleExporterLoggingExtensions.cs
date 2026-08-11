@@ -9,7 +9,7 @@ namespace FastFood.Observability.Common.Exporters.JsonConsole
         public static OpenTelemetryLoggerOptions AddJsonConsoleExporter(this OpenTelemetryLoggerOptions loggerOptions)
             => AddJsonConsoleExporter(loggerOptions, configure: null);
 
-        public static OpenTelemetryLoggerOptions AddJsonConsoleExporter(this OpenTelemetryLoggerOptions loggerOptions, Action<ConsoleExporterOptions> configure)
+        public static OpenTelemetryLoggerOptions AddJsonConsoleExporter(this OpenTelemetryLoggerOptions loggerOptions, Action<ConsoleExporterOptions>? configure)
         {
             if (loggerOptions == null)
             {

@@ -9,4 +9,4 @@ variables:
   - name: releasePoolProdName
     value: 'DemoMDP'
   - name: poolVmImage
-    value: 'ubuntu-latest'
+    value: 'ubuntu-24.04'

@@ -1,10 +1,11 @@
-﻿# Set the path to the certs directory
-$certsPath = "$(Split-Path -Parent $MyInvocation.MyCommand.Path)"
+﻿param(
+    [string]$CertsPath = (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'generated')
+)
 
 # Read the certificate files
-$trustAnchors = (Get-Content "$certsPath\ca.crt" -Raw) -replace "`r`n", "`n" -replace "`n", "\n"
-$certChain = (Get-Content "$certsPath\issuer.crt" -Raw) -replace "`r`n", "`n" -replace "`n", "\n"
-$certKey = (Get-Content "$certsPath\issuer.key" -Raw) -replace "`r`n", "`n" -replace "`n", "\n"
+$trustAnchors = (Get-Content "$CertsPath\ca.crt" -Raw) -replace "`r`n", "`n" -replace "`n", "\n"
+$certChain = (Get-Content "$CertsPath\issuer.crt" -Raw) -replace "`r`n", "`n" -replace "`n", "\n"
+$certKey = (Get-Content "$CertsPath\issuer.key" -Raw) -replace "`r`n", "`n" -replace "`n", "\n"
 
 # Create the mtls.env file content
 $envContent = @"
@@ -15,6 +16,6 @@ NAMESPACE=fastfood
 "@
 
 # Write the mtls.env file
-$envContent | Out-File -FilePath "$certsPath\mtls.env" -Encoding utf8
+$envContent | Out-File -FilePath "$CertsPath\mtls.env" -Encoding utf8
 
-Write-Host "Environment file generated successfully at $certsPath\mtls.env"
+Write-Host "Environment file generated successfully at $CertsPath\mtls.env"

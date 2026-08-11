@@ -10,7 +10,7 @@
   ```
 - Verify that the container is running
   - Open the URL [http://localhost:8080/healthz](http://localhost:8080/healthz)
-  - Open the URL [http://localhost:8080/api/revenuereport](http://localhost:8080/healthz)
+  - Open the URL [http://localhost:8080/api/revenuereport/ByYear/2025](http://localhost:8080/api/revenuereport/ByYear/2025)
 
 ## Using a chiseled image
 
@@ -22,15 +22,15 @@
   ```
 - Verify that the container is running
   - Open the URL [http://localhost:8080/healthz](http://localhost:8080/healthz)
-  - Open the URL [http://localhost:8080/api/revenuereport](http://localhost:8080/healthz)
+  - Open the URL [http://localhost:8080/api/revenuereport/ByYear/2025](http://localhost:8080/api/revenuereport/ByYear/2025)
 
 ## Explanation of Hardening and Image Differences
 
 ### Hardened Base Image
 - Additional Security Steps:
-  The hardened base image starts with the official .NET ASP.NET runtime image and then applies extra Dockerfile steps to improve security. For example, the build stage adjusts file permissions (directories set to 755 and files set to 644) to reduce the risk of unauthorized modifications.
+  The hardened base image uses the non-root `app` user already provided by the official .NET image. The run script also enforces a read-only filesystem, drops Linux capabilities and enables `no-new-privileges`.
 - Non-root Execution:
-  The base image demo includes setting up a non‑root user or running the container with limited permissions, which minimizes the impact in case of a container breach.
+  The base image demo uses `USER $APP_UID`; it does not create another user with distribution-specific package tools.
 - Flexibility:
   Since this image might include additional tools (like shells or package managers) for troubleshooting, it provides a good balance between security and operational flexibility during development or debugging.
 

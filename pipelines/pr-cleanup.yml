@@ -4,6 +4,7 @@ variables:
   - template: config/var-pool.yml
   - template: config/var-commonvariables.yml
   - template: config/var-commonvariables-release.yml
+  - group: fastfood-releasesecrets
 
 resources:
   # https://dev.azure.com/4tecture-demo/_apis/public/distributedtask/webhooks/fastfoodPrUpdated?api-version=6.0-preview
@@ -33,11 +34,46 @@ jobs:
         name: ${{ variables['buildPoolName'] }}
     steps:
     - checkout: none
-    # Delete the Kubernetes namespace for this PR
+    - bash: |
+        set -euo pipefail
+
+        if [[ ! "$FASTFOOD_PR_ID" =~ ^[1-9][0-9]*$ ]]; then
+          echo "Refusing cleanup for invalid pull request id." >&2
+          exit 1
+        fi
+
+        echo "##vso[task.setvariable variable=validatedPullRequestId]$FASTFOOD_PR_ID"
+        echo "##vso[task.setvariable variable=prIdValidated]true"
+      displayName: 'Validate cleanup request'
+      env:
+        FASTFOOD_PR_ID: '${{ parameters.fastfoodPrUpdated.resource.pullRequestId }}'
+    # Azure resources are not namespace-scoped and must be removed explicitly.
+    # Each delete is idempotent, and always() lets the remaining cleanup steps
+    # run even if one resource reports an error.
+    - template: deploy/step-deletedbazuresql.yml
+      parameters:
+        AzureSubscription: '$(azureSubscription)'
+        ResourceGroup: '$(azureResourceGroup)'
+        AzureSqlName: '$(sqlServerName)'
+        DbName: 'FastFoodFinance-pr$(validatedPullRequestId)'
+        condition: and(always(), eq(variables['prIdValidated'], 'true'))
+    - template: deploy/step_deleteazuremanagedidentity.yml
+      parameters:
+        AzureSubscription: '$(azureSubscription)'
+        ManagedIdentity: 'financeservice-pr-$(validatedPullRequestId)-smi'
+        ManagedIdentityResourceGroup: '$(azureResourceGroup)'
+        condition: and(always(), eq(variables['prIdValidated'], 'true'))
+    - template: deploy/step_deleteazuremanagedidentity.yml
+      parameters:
+        AzureSubscription: '$(azureSubscription)'
+        ManagedIdentity: 'financeservice-pr-$(validatedPullRequestId)-dmi'
+        ManagedIdentityResourceGroup: '$(azureResourceGroup)'
+        condition: and(always(), eq(variables['prIdValidated'], 'true'))
     - task: Kubernetes@1
       displayName: 'Delete PR Kubernetes Namespace'
+      condition: and(always(), eq(variables['prIdValidated'], 'true'))
       inputs:
         connectionType: 'Kubernetes Service Connection'
         kubernetesServiceEndpoint: $(kubernetesDeploymentServiceConnection)
         command: delete
-        arguments: 'namespace pr-${{ parameters.fastfoodPrUpdated.resource.pullRequestId }}'
+        arguments: 'namespace pr-$(validatedPullRequestId) --ignore-not-found=true --wait=false'

@@ -78,12 +78,14 @@ stages:
 
   - stage: PullRequest
     dependsOn: []
-    condition: and(succeeded(), ne(variables['System.PullRequest.PullRequestId'], ''))
+    condition: and(succeeded(), startsWith(variables['resources.pipeline.CIBuild.sourceBranch'], 'refs/pull/'))
     variables:
       - name: stagename
         value: pr
+      - name: pullRequestId
+        value: $[replace(replace(variables['resources.pipeline.CIBuild.sourceBranch'], 'refs/pull/', ''), '/merge', '')]
       - name: namespace
-        value: $(stagename)-$(System.PullRequest.PullRequestId)
+        value: $(stagename)-$(pullRequestId)
     jobs:
       - template: deploy/job-deployservicetok8s.yml
         parameters:
@@ -94,6 +96,8 @@ stages:
           chartPackage: '$(helmChartArtifactDownloadPath)'
           kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
           updateBuildNumber: true
+          bootstrapPrEnvironment: true
+          pullRequestId: '$(pullRequestId)'
           
           pool:
             ${{ if eq(variables['poolMode'], 'HostedAgent') }}:
@@ -105,7 +109,8 @@ stages:
         parameters:
           container: worker
           serviceName: '$(serviceName)'
-          displayName: 'Run System Tests for PR $(System.PullRequest.PullRequestId)'
+          displayName: 'Run System Tests for PR $(pullRequestId)'
+          pullRequestId: '$(pullRequestId)'
           posUrl: 'selfservicepos.fastfood.$(namespace).aksdemo.4tecture.ch'
           kitchenUrl: 'kitchenmonitor.fastfood.$(namespace).aksdemo.4tecture.ch'
           orderStatusUrl: 'customerorderstatus.fastfood.$(namespace).aksdemo.4tecture.ch'

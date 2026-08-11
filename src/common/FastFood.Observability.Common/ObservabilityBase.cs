@@ -35,7 +35,7 @@ public class ObservabilityBase : IObservability
 
   public virtual Activity? StartActivity(string name = "", ActivityKind kind = ActivityKind.Internal)
   {
-    return this.ActivitySource?.StartActivity(name, kind);
+    return this.ActivitySource.StartActivity(name, kind);
   }
 
   public virtual Activity? StartActivity(
@@ -44,23 +44,19 @@ public class ObservabilityBase : IObservability
     ActivityKind kind = ActivityKind.Internal,
     bool includeCallerTypeInName = false)
   {
-    if (callerType != (Type) null && this.StartActivityExclusionPredicate(callerType))
-      return (Activity) null;
-    if (!includeCallerTypeInName || callerType == (Type) null)
-      return this.ActivitySource?.StartActivity(name, kind);
-    ActivitySource activitySource = this.ActivitySource;
-    if (activitySource == null)
-      return (Activity) null;
-    string name1;
+    if (callerType is not null && this.StartActivityExclusionPredicate(callerType))
+      return null;
+    if (!includeCallerTypeInName || callerType is null)
+      return this.ActivitySource.StartActivity(name, kind);
+    string activityName;
     if (!callerType.IsGenericType)
-      name1 = $"{callerType.Name}.{name}";
+      activityName = $"{callerType.Name}.{name}";
     else
-      name1 = $"{callerType.Name.AsSpan(0, callerType.Name.IndexOf("`", StringComparison.InvariantCulture)).ToString()}<{string.Join(",", ((IEnumerable<Type>) callerType.GenericTypeArguments).Select<Type, string>((Func<Type, string>) (t => t.Name)))}>.{name}";
-    int kind1 = (int) kind;
-    return activitySource.StartActivity(name1, (ActivityKind) kind1);
+      activityName = $"{callerType.Name.AsSpan(0, callerType.Name.IndexOf('`')).ToString()}<{string.Join(",", callerType.GenericTypeArguments.Select(t => t.Name))}>.{name}";
+    return this.ActivitySource.StartActivity(activityName, kind);
   }
 
-  protected virtual Func<Type, bool> StartActivityExclusionPredicate { get; } = (Func<Type, bool>) (_ => false);
+  protected virtual Func<Type, bool> StartActivityExclusionPredicate { get; } = _ => false;
 
   protected virtual bool EnableDatabaseMetrics { get; } = true;
 

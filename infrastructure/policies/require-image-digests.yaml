@@ -1,0 +1,37 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: fastfood-require-image-digests
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  validations:
+    - expression: >-
+        object.spec.containers.all(container,
+          container.image.matches('^.+@sha256:[a-f0-9]{64}$'))
+      message: "Every application container image must be pinned to a sha256 digest."
+    - expression: >-
+        !has(object.spec.initContainers) || object.spec.initContainers.all(container,
+          container.image.matches('^.+@sha256:[a-f0-9]{64}$'))
+      message: "Every init-container image must be pinned to a sha256 digest."
+    - expression: >-
+        !has(object.spec.ephemeralContainers) || object.spec.ephemeralContainers.all(container,
+          container.image.matches('^.+@sha256:[a-f0-9]{64}$'))
+      message: "Every ephemeral-container image must be pinned to a sha256 digest."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: fastfood-require-image-digests
+spec:
+  policyName: fastfood-require-image-digests
+  validationActions: [Deny, Audit]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        fastfood.dev/require-image-digests: "true"

@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-10T11:02:30Z",
+  "title": "Design System: FastFood",
+  "extensions": {
+    "colorMeta": {
+      "cream-ground": { "role": "neutral", "displayName": "Cream Ground", "canonical": "#fff8e9", "tonalRamp": ["oklch(15% 0.021 85.9)", "oklch(27% 0.021 85.9)", "oklch(39% 0.021 85.9)", "oklch(51% 0.021 85.9)", "oklch(63% 0.021 85.9)", "oklch(75% 0.021 85.9)", "oklch(87% 0.021 85.9)", "oklch(95% 0.021 85.9)"] },
+      "cream-layer": { "role": "neutral", "displayName": "Cream Layer", "canonical": "#ffedc2", "tonalRamp": ["oklch(15% 0.059 88.0)", "oklch(27% 0.059 88.0)", "oklch(39% 0.059 88.0)", "oklch(51% 0.059 88.0)", "oklch(63% 0.059 88.0)", "oklch(75% 0.059 88.0)", "oklch(87% 0.059 88.0)", "oklch(95% 0.059 88.0)"] },
+      "near-black-ink": { "role": "neutral", "displayName": "Near-Black Ink", "canonical": "#201b18", "tonalRamp": ["oklch(15% 0.010 53.0)", "oklch(27% 0.010 53.0)", "oklch(39% 0.010 53.0)", "oklch(51% 0.010 53.0)", "oklch(63% 0.010 53.0)", "oklch(75% 0.010 53.0)", "oklch(87% 0.010 53.0)", "oklch(95% 0.010 53.0)"] },
+      "muted-warm-ink": { "role": "neutral", "displayName": "Muted Warm Ink", "canonical": "#65584f", "tonalRamp": ["oklch(15% 0.022 56.8)", "oklch(27% 0.022 56.8)", "oklch(39% 0.022 56.8)", "oklch(51% 0.022 56.8)", "oklch(63% 0.022 56.8)", "oklch(75% 0.022 56.8)", "oklch(87% 0.022 56.8)", "oklch(95% 0.022 56.8)"] },
+      "tomato-red": { "role": "primary", "displayName": "Tomato Red", "canonical": "#d93622", "tonalRamp": ["oklch(15% 0.180 30.7)", "oklch(27% 0.180 30.7)", "oklch(39% 0.180 30.7)", "oklch(51% 0.180 30.7)", "oklch(63% 0.180 30.7)", "oklch(75% 0.180 30.7)", "oklch(87% 0.180 30.7)", "oklch(95% 0.180 30.7)"] },
+      "tomato-red-hover": { "role": "primary", "displayName": "Tomato Red Hover", "canonical": "#b72517", "tonalRamp": ["oklch(15% 0.180 30.1)", "oklch(27% 0.180 30.1)", "oklch(39% 0.180 30.1)", "oklch(51% 0.180 30.1)", "oklch(63% 0.180 30.1)", "oklch(75% 0.180 30.1)", "oklch(87% 0.180 30.1)", "oklch(95% 0.180 30.1)"] },
+      "mustard-yellow": { "role": "secondary", "displayName": "Mustard Yellow", "canonical": "#ffd43b", "tonalRamp": ["oklch(15% 0.165 92.2)", "oklch(27% 0.165 92.2)", "oklch(39% 0.165 92.2)", "oklch(51% 0.165 92.2)", "oklch(63% 0.165 92.2)", "oklch(75% 0.165 92.2)", "oklch(87% 0.165 92.2)", "oklch(95% 0.165 92.2)"] },
+      "warm-rule": { "role": "neutral", "displayName": "Warm Rule", "canonical": "#dbcdb6", "tonalRamp": ["oklch(15% 0.035 80.3)", "oklch(27% 0.035 80.3)", "oklch(39% 0.035 80.3)", "oklch(51% 0.035 80.3)", "oklch(63% 0.035 80.3)", "oklch(75% 0.035 80.3)", "oklch(87% 0.035 80.3)", "oklch(95% 0.035 80.3)"] },
+      "pure-white": { "role": "neutral", "displayName": "Pure White", "canonical": "#ffffff", "tonalRamp": ["oklch(15% 0 0)", "oklch(27% 0 0)", "oklch(39% 0 0)", "oklch(51% 0 0)", "oklch(63% 0 0)", "oklch(75% 0 0)", "oklch(87% 0 0)", "oklch(95% 0 0)"] },
+      "focus-blue": { "role": "primary", "displayName": "Focus Blue", "canonical": "#1769e0", "tonalRamp": ["oklch(15% 0.180 259.2)", "oklch(27% 0.180 259.2)", "oklch(39% 0.180 259.2)", "oklch(51% 0.180 259.2)", "oklch(63% 0.180 259.2)", "oklch(75% 0.180 259.2)", "oklch(87% 0.180 259.2)", "oklch(95% 0.180 259.2)"] },
+      "graphite-ground": { "role": "neutral", "displayName": "Graphite Ground", "canonical": "#171411", "tonalRamp": ["oklch(15% 0.008 67.3)", "oklch(27% 0.008 67.3)", "oklch(39% 0.008 67.3)", "oklch(51% 0.008 67.3)", "oklch(63% 0.008 67.3)", "oklch(75% 0.008 67.3)", "oklch(87% 0.008 67.3)", "oklch(95% 0.008 67.3)"] },
+      "graphite-panel": { "role": "neutral", "displayName": "Graphite Panel", "canonical": "#221e1a", "tonalRamp": ["oklch(15% 0.010 67.3)", "oklch(27% 0.010 67.3)", "oklch(39% 0.010 67.3)", "oklch(51% 0.010 67.3)", "oklch(63% 0.010 67.3)", "oklch(75% 0.010 67.3)", "oklch(87% 0.010 67.3)", "oklch(95% 0.010 67.3)"] },
+      "graphite-panel-raised": { "role": "neutral", "displayName": "Graphite Panel Raised", "canonical": "#2b2520", "tonalRamp": ["oklch(15% 0.013 62.1)", "oklch(27% 0.013 62.1)", "oklch(39% 0.013 62.1)", "oklch(51% 0.013 62.1)", "oklch(63% 0.013 62.1)", "oklch(75% 0.013 62.1)", "oklch(87% 0.013 62.1)", "oklch(95% 0.013 62.1)"] },
+      "graphite-rule": { "role": "neutral", "displayName": "Graphite Rule", "canonical": "#4c4038", "tonalRamp": ["oklch(15% 0.021 55.7)", "oklch(27% 0.021 55.7)", "oklch(39% 0.021 55.7)", "oklch(51% 0.021 55.7)", "oklch(63% 0.021 55.7)", "oklch(75% 0.021 55.7)", "oklch(87% 0.021 55.7)", "oklch(95% 0.021 55.7)"] },
+      "kitchen-tomato": { "role": "primary", "displayName": "Kitchen Tomato", "canonical": "#ff5a3d", "tonalRamp": ["oklch(15% 0.180 32.3)", "oklch(27% 0.180 32.3)", "oklch(39% 0.180 32.3)", "oklch(51% 0.180 32.3)", "oklch(63% 0.180 32.3)", "oklch(75% 0.180 32.3)", "oklch(87% 0.180 32.3)", "oklch(95% 0.180 32.3)"] },
+      "kitchen-tomato-hover": { "role": "primary", "displayName": "Kitchen Tomato Hover", "canonical": "#ff765f", "tonalRamp": ["oklch(15% 0.172 31.3)", "oklch(27% 0.172 31.3)", "oklch(39% 0.172 31.3)", "oklch(51% 0.172 31.3)", "oklch(63% 0.172 31.3)", "oklch(75% 0.172 31.3)", "oklch(87% 0.172 31.3)", "oklch(95% 0.172 31.3)"] },
+      "completion-green": { "role": "tertiary", "displayName": "Completion Green", "canonical": "#9fcd85", "tonalRamp": ["oklch(15% 0.109 134.8)", "oklch(27% 0.109 134.8)", "oklch(39% 0.109 134.8)", "oklch(51% 0.109 134.8)", "oklch(63% 0.109 134.8)", "oklch(75% 0.109 134.8)", "oklch(87% 0.109 134.8)", "oklch(95% 0.109 134.8)"] },
+      "error-coral": { "role": "tertiary", "displayName": "Error Coral", "canonical": "#ff8b78", "tonalRamp": ["oklch(15% 0.144 30.5)", "oklch(27% 0.144 30.5)", "oklch(39% 0.144 30.5)", "oklch(51% 0.144 30.5)", "oklch(63% 0.144 30.5)", "oklch(75% 0.144 30.5)", "oklch(87% 0.144 30.5)", "oklch(95% 0.144 30.5)"] },
+      "kitchen-focus-blue": { "role": "primary", "displayName": "Kitchen Focus Blue", "canonical": "#7db5ff", "tonalRamp": ["oklch(15% 0.122 255.7)", "oklch(27% 0.122 255.7)", "oklch(39% 0.122 255.7)", "oklch(51% 0.122 255.7)", "oklch(63% 0.122 255.7)", "oklch(75% 0.122 255.7)", "oklch(87% 0.122 255.7)", "oklch(95% 0.122 255.7)"] },
+      "kitchen-action-ink": { "role": "neutral", "displayName": "Kitchen Action Ink", "canonical": "#20120e", "tonalRamp": ["oklch(15% 0.025 36.6)", "oklch(27% 0.025 36.6)", "oklch(39% 0.025 36.6)", "oklch(51% 0.025 36.6)", "oklch(63% 0.025 36.6)", "oklch(75% 0.025 36.6)", "oklch(87% 0.025 36.6)", "oklch(95% 0.025 36.6)"] }
+    },
+    "typographyMeta": {
+      "wordmark": { "displayName": "Wordmark", "purpose": "FastFood identity lockups and rare signature accents." },
+      "display": { "displayName": "Display", "purpose": "Glance-distance order references and highest-priority information." },
+      "headline": { "displayName": "Headline", "purpose": "Major field headings and customer decisions." },
+      "title": { "displayName": "Title", "purpose": "Tickets, summaries, and focused page titles." },
+      "body": { "displayName": "Body", "purpose": "Short supporting copy and item descriptions." },
+      "label": { "displayName": "Label", "purpose": "Compact status and identity labels." },
+      "numeric": { "displayName": "Numeric", "purpose": "Counts, progress, prices, and references with tabular figures." },
+      "action": { "displayName": "Action", "purpose": "Primary, secondary, quantity, and finish controls." }
+    },
+    "shadows": [
+      { "name": "ready-pickup-lift", "value": "0 10px 24px rgba(111, 39, 15, 0.2)", "purpose": "Only for high-priority ready pickup tokens." }
+    ],
+    "motion": [
+      { "name": "control-fast", "value": "140ms ease", "purpose": "Quantity and kitchen finish state changes." },
+      { "name": "action-standard", "value": "150ms ease", "purpose": "Primary and secondary button feedback." },
+      { "name": "ready-arrival", "value": "420ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Clipped reveal for newly ready pickup tokens." },
+      { "name": "completion-reveal", "value": "360ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Concise reveal when kitchen work becomes Done." },
+      { "name": "wordmark-arrival", "value": "540ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "One-time arrival of the signature start-screen wordmark." }
+    ],
+    "breakpoints": [
+      { "name": "receipt-compact", "value": "36rem" },
+      { "name": "brand-compact", "value": "40rem" },
+      { "name": "kitchen-actions-stacked", "value": "42rem" },
+      { "name": "order-rail-docked", "value": "48rem" },
+      { "name": "status-board-stacked", "value": "50rem" },
+      { "name": "pos-density", "value": "62rem" },
+      { "name": "kitchen-title-hidden", "value": "64rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Shared Wordmark",
+      "kind": "nav",
+      "refersTo": "wordmark",
+      "description": "Compact FastFood identity lockup shared by customer and kitchen surfaces.",
+      "html": "<div class=\"ds-wordmark\" aria-label=\"FastFood\"><span>Fast</span><strong>Food</strong></div>",
+      "css": ".ds-wordmark { display:inline-flex; align-items:baseline; color:var(--ff-ink, var(--kw-ink, #201b18)); font-family:'Paytone One','Bricolage Grotesque',sans-serif; font-size:1.5rem; letter-spacing:-0.035em; line-height:1; } .ds-wordmark strong { padding:0.18rem 0.35rem 0.25rem 0.08rem; border-radius:4px; background:var(--ff-accent, var(--kw-accent, #d93622)); color:#fff; font-weight:400; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The bold public action used for starting, adding, ordering, and paying.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Place Order</button>",
+      "css": ".ds-btn-primary { display:inline-flex; min-height:58px; align-items:center; justify-content:center; padding:1rem 1.5rem; border:2px solid var(--ff-accent, #d93622); border-radius:14px; background:var(--ff-accent, #d93622); color:var(--ff-btn-txt, #fff); font-family:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif; font-size:1rem; font-weight:800; cursor:pointer; transition:background 150ms ease,border-color 150ms ease,transform 150ms ease; } .ds-btn-primary:hover { border-color:var(--ff-accent-h, #b72517); background:var(--ff-accent-h, #b72517); transform:translateY(-2px); } .ds-btn-primary:active { transform:translateY(1px); } .ds-btn-primary:focus-visible { outline:3px solid var(--ff-focus, #1769e0); outline-offset:4px; } @media (prefers-reduced-motion:reduce) { .ds-btn-primary { transition-duration:0.01ms; } }"
+    },
+    {
+      "name": "Quantity Control",
+      "kind": "custom",
+      "refersTo": "quantity-button",
+      "description": "Touch-sized decrement and increment controls around a fixed-width count.",
+      "html": "<div class=\"ds-quantity\" aria-label=\"Quantity\"><button type=\"button\" aria-label=\"Decrease quantity\">−</button><strong>1</strong><button type=\"button\" aria-label=\"Increase quantity\">+</button></div>",
+      "css": ".ds-quantity { display:inline-flex; align-items:center; gap:0.4rem; color:var(--ff-ink, #201b18); font-family:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif; } .ds-quantity button { display:flex; width:46px; height:46px; align-items:center; justify-content:center; border:2px solid transparent; border-radius:12px; background:var(--ff-ground-2, #ffedc2); color:inherit; font:700 1.25rem/1 inherit; cursor:pointer; transition:border-color 140ms ease,transform 140ms ease; } .ds-quantity button:hover { border-color:var(--ff-accent, #d93622); } .ds-quantity button:active { transform:scale(0.96); } .ds-quantity button:focus-visible { outline:3px solid var(--ff-focus, #1769e0); outline-offset:3px; } .ds-quantity strong { width:2rem; text-align:center; font-size:1rem; font-weight:750; } @media (prefers-reduced-motion:reduce) { .ds-quantity button { transition-duration:0.01ms; } }"
+    },
+    {
+      "name": "Order Rail",
+      "kind": "card",
+      "refersTo": "button-secondary",
+      "description": "Persistent mustard summary field that keeps the current order and final action visible.",
+      "html": "<aside class=\"ds-order-rail\"><h2>Your Order</h2><div class=\"ds-order-line\"><span><b>1×</b> Cheeseburger</span><strong>$8.50</strong></div><div class=\"ds-order-total\"><span>Total</span><strong>$8.50</strong></div><button type=\"button\">Place Order</button></aside>",
+      "css": ".ds-order-rail { width:320px; padding:2rem; border-radius:14px; background:var(--ff-cart-ground, #ffd43b); color:var(--ff-cart-ink, #201b18); font-family:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif; } .ds-order-rail h2 { margin:0 0 1.5rem; font-size:2rem; font-weight:800; letter-spacing:-0.035em; } .ds-order-line,.ds-order-total { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; padding:0.875rem 0; border-bottom:1px solid var(--ff-cart-rule, #b99a21); } .ds-order-line b { color:var(--ff-cart-muted, #665719); } .ds-order-total { margin-top:0.75rem; border-top:3px solid currentColor; border-bottom:0; font-weight:800; text-transform:uppercase; } .ds-order-rail button { width:100%; min-height:58px; margin-top:1.5rem; border:2px solid var(--ff-cart-cta, #201b18); border-radius:14px; background:var(--ff-cart-cta, #201b18); color:var(--ff-cart-cta-text, #fff8e9); font:800 1rem/1 inherit; cursor:pointer; transition:background 150ms ease,border-color 150ms ease,transform 150ms ease; } .ds-order-rail button:hover { border-color:var(--ff-accent, #d93622); background:var(--ff-accent, #d93622); color:#fff; transform:translateY(-2px); } .ds-order-rail button:active { transform:translateY(1px); } .ds-order-rail button:focus-visible { outline:3px solid var(--ff-focus, #1769e0); outline-offset:4px; } @media (prefers-reduced-motion:reduce) { .ds-order-rail button { transition-duration:0.01ms; } }"
+    },
+    {
+      "name": "Ready Pickup Token",
+      "kind": "chip",
+      "refersTo": "ready-token",
+      "description": "The largest customer-status token and the only component granted canonical shadow.",
+      "html": "<div class=\"ds-ready-token\" aria-label=\"Order A17 is ready for pickup\">A17</div>",
+      "css": ".ds-ready-token { display:flex; min-width:10rem; min-height:7rem; align-items:center; justify-content:center; padding:1rem; overflow:hidden; border-radius:14px; background:var(--ff-accent, #d93622); color:#fff; box-shadow:0 10px 24px rgba(111,39,15,0.2); font-family:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif; font-size:clamp(2.25rem,5vw,5.5rem); font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-0.04em; line-height:1; animation:ds-ready-arrive 420ms cubic-bezier(0.16,1,0.3,1) both; } @keyframes ds-ready-arrive { from { clip-path:inset(0 100% 0 0); transform:translateY(0.4rem); } to { clip-path:inset(0 0 0 0); transform:translateY(0); } } @media (prefers-reduced-motion:reduce) { .ds-ready-token { animation-duration:0.01ms; } }"
+    },
+    {
+      "name": "Workload Counter",
+      "kind": "chip",
+      "refersTo": "workload-counter",
+      "description": "Compact mustard count for kitchen progress and open workload.",
+      "html": "<div class=\"ds-workload\"><strong>3/6</strong><span>done</span></div>",
+      "css": ".ds-workload { display:inline-flex; min-width:4.5rem; flex-direction:column; align-items:center; justify-content:center; padding:0.65rem 0.8rem; border-radius:12px; background:var(--kw-highlight, #ffd43b); color:var(--kw-highlight-ink, #201b18); font-family:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif; } .ds-workload strong { font-size:1.125rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; } .ds-workload span { margin-top:0.15rem; font-size:0.6875rem; font-weight:800; text-transform:uppercase; }"
+    },
+    {
+      "name": "Kitchen Ticket and Finish Action",
+      "kind": "card",
+      "refersTo": "kitchen-ticket",
+      "description": "Graphite order ticket with mustard progress and one attached tomato finish action.",
+      "html": "<article class=\"ds-ticket\"><header><div><h2>A17</h2><p>2 items remaining</p></div><div class=\"ds-ticket-progress\"><strong>1/3</strong><span>done</span></div></header><div class=\"ds-ticket-row\"><b>2×</b><span>Cheeseburger</span><button type=\"button\"><svg viewBox=\"0 0 24 24\" width=\"19\" height=\"19\" aria-hidden=\"true\"><path d=\"m5 12.5 4.2 4.2L19 7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Finish</button></div></article>",
+      "css": ".ds-ticket { overflow:hidden; border:1px solid var(--kw-rule, #4c4038); border-radius:14px; background:var(--kw-panel, #221e1a); color:var(--kw-ink, #fff8e9); font-family:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif; } .ds-ticket header { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1.25rem 1.35rem; background:var(--kw-panel-2, #2b2520); } .ds-ticket h2 { margin:0; font-size:2rem; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-0.035em; line-height:1; } .ds-ticket p { margin:0.45rem 0 0; color:var(--kw-muted, #cbbbad); font-size:0.875rem; font-weight:650; } .ds-ticket-progress { display:flex; min-width:4.5rem; flex-direction:column; align-items:center; padding:0.65rem 0.8rem; border-radius:12px; background:var(--kw-highlight, #ffd43b); color:var(--kw-highlight-ink, #201b18); } .ds-ticket-progress strong { font-size:1.125rem; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; } .ds-ticket-progress span { margin-top:0.15rem; font-size:0.6875rem; font-weight:800; text-transform:uppercase; } .ds-ticket-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; min-height:72px; align-items:center; gap:0.85rem; padding:0.75rem 1rem 0.75rem 1.35rem; border-top:1px solid var(--kw-rule, #4c4038); } .ds-ticket-row>b { min-width:2rem; color:var(--kw-highlight, #ffd43b); font-size:1rem; font-variant-numeric:tabular-nums; } .ds-ticket-row>span { overflow:hidden; font-size:1rem; font-weight:700; text-overflow:ellipsis; white-space:nowrap; } .ds-ticket-row button { display:inline-flex; min-width:6.25rem; min-height:48px; align-items:center; justify-content:center; gap:0.45rem; padding:0.7rem 1rem; border:2px solid var(--kw-accent, #ff5a3d); border-radius:12px; background:var(--kw-accent, #ff5a3d); color:#20120e; font:800 0.9375rem/1 inherit; cursor:pointer; transition:background 140ms ease,border-color 140ms ease,transform 140ms ease; } .ds-ticket-row button:hover { border-color:var(--kw-accent-hover, #ff765f); background:var(--kw-accent-hover, #ff765f); transform:translateY(-1px); } .ds-ticket-row button:active { transform:translateY(1px); } .ds-ticket-row button:focus-visible { outline:3px solid var(--kw-focus, #7db5ff); outline-offset:3px; } .ds-ticket-row button:disabled { cursor:wait; opacity:0.72; } @media (prefers-reduced-motion:reduce) { .ds-ticket-row button { transition-duration:0.01ms; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Fast Counter",
+    "overview": "FastFood should feel like the instant recognition and decisive rhythm of a great fast-food counter: energetic, direct, warm, chunky, and useful. Public and customer-facing surfaces use broad cream fields, tomato actions, mustard highlights, near-black ink, and oversized information so a person can decide at a glance or from several metres away.\n\nThe kitchen translates the same identity into an internal flight deck. Warm graphite replaces cream as the ground; cream type, tomato actions, mustard workload counts, and green completion preserve the family resemblance while reducing visual noise under pressure. The system is emphatically not classy, upscale, corporate-dashboard-like, or overly decorative.\n\nMotion is brief and purposeful: clipped arrival for newly important information and a concise reveal for completion. Every animation must collapse to effectively instantaneous behavior when reduced motion is requested.",
+    "keyCharacteristics": [
+      "Warm high-contrast fields rather than cool neutral application chrome.",
+      "Chunky, compact typography with unmistakable numeric priority.",
+      "Tomato for action and readiness; mustard for attention and workload.",
+      "Flat tonal layering, visible rules, and only one exceptional shadow role.",
+      "Moderate tactile corners, with pills reserved for compact counters and status."
+    ],
+    "rules": [
+      { "name": "The Warm Signal Rule", "body": "Tomato means action or readiness; mustard means attention or workload. Do not interchange them casually.", "section": "colors" },
+      { "name": "The Two Worlds, One Counter Rule", "body": "Customer surfaces stay cream-led and expressive; the kitchen stays graphite-led and restrained while keeping the same signal colors and wordmark.", "section": "colors" },
+      { "name": "The Fast Read Rule", "body": "Weight, scale, and tabular figures do the work; do not add ornamental type treatments to operational information.", "section": "typography" },
+      { "name": "The Signature Is Scarce Rule", "body": "Paytone One belongs to the FastFood wordmark and rare display accents, never paragraphs, controls, or dense kitchen data.", "section": "typography" },
+      { "name": "The Field Before Card Rule", "body": "Establish hierarchy with background fields, rules, and scale before introducing another container.", "section": "layout" },
+      { "name": "The Action Stays Attached Rule", "body": "On every breakpoint, the control remains visually and structurally attached to the item or decision it changes.", "section": "layout" },
+      { "name": "The Flat-by-Default Rule", "body": "If color, a rule, or spacing can establish the layer, do not add a shadow.", "section": "elevation" },
+      { "name": "The Ready Lift Rule", "body": "Shadow is a semantic privilege of ready pickup, not generic polish for cards or controls.", "section": "elevation" },
+      { "name": "The Pill Ration Rule", "body": "Use 999px only when the object is intrinsically compact—a count, dot, or short status—not as a default component silhouette.", "section": "shapes" },
+      { "name": "The One Deliberate Action Rule", "body": "Every operational row exposes one obvious, reachable action and an equally explicit completed state.", "section": "components" }
+    ],
+    "dos": [
+      "Do use cream, tomato, mustard, and near-black as the public identity, then translate them to graphite, cream, tomato, mustard, and green for the kitchen.",
+      "Do make hierarchy visible through field color, type scale, strong rules, and whitespace.",
+      "Do keep numeric information tabular, extra-bold, and readable at the surface’s actual viewing distance.",
+      "Do preserve at least 44–48px touch targets and visible 3px focus outlines.",
+      "Do limit motion to brief arrival and completion feedback and honor `prefers-reduced-motion` everywhere."
+    ],
+    "donts": [
+      "Don't make FastFood feel classy, upscale, corporate-dashboard-like, cool-neutral, or overly decorative.",
+      "Don't use generic card grids when one strong field or rule can communicate the same structure.",
+      "Don't add shadows to routine controls, counters, or kitchen tickets; reserve the canonical lift for ready pickup.",
+      "Don't use excessive pills, ornamental gradients, glass effects, or soft ambient decoration.",
+      "Don't use Paytone One for body copy, dense operational data, or control labels."
+    ]
+  }
+}

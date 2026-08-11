@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Dapr.Client;
+using FastFood.Common.ServiceInvocation;
 using FrontendSelfServicePos.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -12,7 +12,7 @@ namespace FrontendSelfServicePos.Unit.Tests.Controllers;
 
 public class OrderControllerTests
 {
-    private readonly Mock<DaprClient> _daprClientMock;
+    private readonly Mock<IDaprServiceInvoker> _daprClientMock;
     private readonly Mock<IFrontendSelfServicePosObservability> _observabilityMock;
     private readonly Mock<ILogger<OrderController>> _loggerMock;
     private readonly OrderController _controller;
@@ -20,7 +20,7 @@ public class OrderControllerTests
 
     public OrderControllerTests()
     {
-        _daprClientMock = new Mock<DaprClient>();
+        _daprClientMock = new Mock<IDaprServiceInvoker>();
         _observabilityMock = new Mock<IFrontendSelfServicePosObservability>();
         _loggerMock = new Mock<ILogger<OrderController>>();
         _activitySource = new ActivitySource("TestActivitySource");

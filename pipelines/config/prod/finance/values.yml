@@ -2,9 +2,32 @@ image:
   repository: __azureContainerRegistry__/financeservice
   dbdeployclirepository: __azureContainerRegistry__/financeservice-dbdeployment
   tag: __artifactVersion__
+  digest: __imageDigest__
+  dbDeployDigest: __dbDeployImageDigest__
+replicaCount: 2
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+networkPolicy:
+  enabled: true
+  ingressNamespaceSelector:
+    kubernetes.io/metadata.name: ingress-nginx
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: financeservice
 database:
   connectionString: __connectionString__
   useInMemoryDatabase: false
+  existingSecret: ""
+  createSecret: false
 workloadIdentity:
   enabled: true
   provider: "Azure"

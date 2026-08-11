@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FastFood.Common.Settings;
+using FastFood.Common.Health;
 using FastFood.FeatureManagement.Common.Extensions;
 using FastFood.Observability.Common;
 using FinanceService.Observability;
@@ -41,7 +42,7 @@ builder.Services.AddControllers()
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddHealthChecks();
+builder.Services.AddFastFoodHealthChecks(builder.Configuration);
 
 var app = builder.Build();
 
@@ -65,6 +66,6 @@ app.UseObservability(observabilityOptions);
 app.MapControllers();
 app.MapSubscribeHandler();
 
-app.MapHealthChecks("/healthz");
+app.MapFastFoodHealthChecks();
 
 app.Run();

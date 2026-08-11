@@ -11,7 +11,7 @@ Write-Host ""
 Write-Host "Checking .NET installation..." -ForegroundColor Yellow
 $dotnetVersion = dotnet --version
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: .NET SDK not found. Please install .NET 9.0 or later." -ForegroundColor Red
+    Write-Host "ERROR: .NET SDK not found. Please install .NET 10.0 or later." -ForegroundColor Red
     exit 1
 }
 Write-Host "✓ .NET version: $dotnetVersion" -ForegroundColor Green
@@ -29,7 +29,7 @@ Write-Host ""
 
 # Install Playwright browsers
 Write-Host "Installing Playwright browsers..." -ForegroundColor Yellow
-$playwrightScript = "bin/Debug/net9.0/playwright.ps1"
+$playwrightScript = "bin/Debug/net10.0/playwright.ps1"
 
 if (Test-Path $playwrightScript) {
     & $playwrightScript install chromium

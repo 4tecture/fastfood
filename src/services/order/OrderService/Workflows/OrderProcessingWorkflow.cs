@@ -8,7 +8,7 @@ public class OrderProcessingWorkflow : Workflow<Guid, Order>
 {
     public override async Task<Order> RunAsync(WorkflowContext context, Guid orderId)
     {
-        Order order = null;
+        var order = new Order { Id = orderId };
         try
         {
             // Create order
@@ -70,7 +70,7 @@ public class OrderProcessingWorkflow : Workflow<Guid, Order>
         catch (Exception e)
         {
             context.SetCustomStatus($"Something went wrong: {e.Message}");
-            return order ?? new Order(){ Id = orderId};
+            return order;
         }
     }
 }

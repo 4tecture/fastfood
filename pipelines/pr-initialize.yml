@@ -64,22 +64,11 @@ stages:
               steps:
                 - script: |
                     echo "##vso[build.updatebuildnumber]$(namespace)"
-                    # Derive a stable Redis DB index in the range 3-15 from the PR ID.
-                    # DBs 0-2 are reserved; 13 DBs available (3..15).
-                    # The same PR always maps to the same DB; no counter drift.
-                    redis_db=$(( ($(System.PullRequest.PullRequestId) % 13) + 3 ))
-                    echo "Assigned Redis DB: $redis_db (PR $(System.PullRequest.PullRequestId) % 13 + 3)"
-                    echo "##vso[task.setvariable variable=redisDB]$redis_db"
                   displayName: 'Update Build Number'
-                # Setup Helm authentication
-                - task: HelmDeploy@0
-                  displayName: 'Setup Helm Authentication'
-                  inputs:
-                    connectionType: 'Kubernetes Service Connection'
-                    kubernetesServiceConnection: $(kubernetesDeploymentServiceConnection)
-                    command: 'login'
-                  condition: succeeded()
-
+                - template: deploy/step-bootstrapprnamespace.yml
+                  parameters:
+                    kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
+                    pullRequestId: '$(System.PullRequest.PullRequestId)'
                 # Check if releases exist in one step
                 - bash: |
                     # Define all releases to check
@@ -131,7 +120,7 @@ stages:
                     condition: and(succeeded(), not(eq(variables['daprenv_EXISTS'], 'true')))
                     installHelm: false
                     installKubectl: false
-                    createNamespace: true
+                    resolveImageDigests: false
                 
                 - script: |
                     echo "##vso[task.setvariable variable=artifactVersion]$(RESOURCES.PIPELINE.CIBUILDORDERSERVICE.RUNNAME)"
@@ -146,6 +135,7 @@ stages:
                     condition: and(succeeded(), not(eq(variables['orderservice_EXISTS'], 'true')))
                     installHelm: false
                     installKubectl: false
+                    resolveImageDigests: false
                 
                 - script: |
                     echo "##vso[task.setvariable variable=artifactVersion]$(RESOURCES.PIPELINE.CIBUILDKITCHENSERVICE.RUNNAME)"
@@ -160,6 +150,7 @@ stages:
                     condition: and(succeeded(), not(eq(variables['kitchenservice_EXISTS'], 'true')))
                     installHelm: false
                     installKubectl: false
+                    resolveImageDigests: false
                 
                 - script: |
                     echo "##vso[task.setvariable variable=artifactVersion]$(RESOURCES.PIPELINE.CIBUILDFINANCESERVICE.RUNNAME)"
@@ -197,7 +188,11 @@ stages:
                     DeploymentManagedidentity: 'financeservice-$(namespace)-dmi'
                     SetupBackup: false
                 - script: |
-                    echo "##vso[task.setvariable variable=connectionString]Server=$(sqlServerName).database.windows.net,1433;Database=FastFoodFinance-pr$(System.PullRequest.PullRequestId);TrustServerCertificate=True;"
+                    # Finance 1.0.1 supplies the workload-identity access token
+                    # through its DacFx IUniversalAuthProvider. Do not also set
+                    # SqlClient's Authentication keyword: combining both auth
+                    # mechanisms prevents DacFx from opening the connection.
+                    echo "##vso[task.setvariable variable=connectionString]Server=$(sqlServerName).database.windows.net,1433;Database=FastFoodFinance-pr$(System.PullRequest.PullRequestId);Encrypt=True;TrustServerCertificate=False;"
                     echo "##vso[task.setvariable variable=serviceWorkloadIdentityClientId]$(AzureIdentity.ClientId)"
                     echo "##vso[task.setvariable variable=serviceWorkloadIdentityName]$(AzureIdentity.Name)"
                     echo "##vso[task.setvariable variable=deployWorkloadIdentityClientId]$(DeploymentAzureIdentity.ClientId)"
@@ -213,6 +208,7 @@ stages:
                     condition: and(succeeded(), not(eq(variables['financeservice_EXISTS'], 'true')))
                     installHelm: false
                     installKubectl: false
+                    resolveImageDigests: false
                 
                 - script: |
                     echo "##vso[task.setvariable variable=artifactVersion]$(RESOURCES.PIPELINE.CIBUILDFRONTENDCUSTOMERORDERSTATUS.RUNNAME)"
@@ -227,6 +223,7 @@ stages:
                     condition: and(succeeded(), not(eq(variables['frontendcustomerorderstatus_EXISTS'], 'true')))
                     installHelm: false
                     installKubectl: false
+                    resolveImageDigests: false
                 
                 - script: |
                     echo "##vso[task.setvariable variable=artifactVersion]$(RESOURCES.PIPELINE.CIBUILDFRONTENDKITCHENMONITOR.RUNNAME)"
@@ -241,6 +238,7 @@ stages:
                     condition: and(succeeded(), not(eq(variables['frontendkitchenmonitor_EXISTS'], 'true')))
                     installHelm: false
                     installKubectl: false
+                    resolveImageDigests: false
                 
                 - script: |
                     echo "##vso[task.setvariable variable=artifactVersion]$(RESOURCES.PIPELINE.CIBUILDFRONTENDSELFSERVICEPOS.RUNNAME)"
@@ -255,6 +253,7 @@ stages:
                     condition: and(succeeded(), not(eq(variables['frontendselfservicepos_EXISTS'], 'true')))
                     installHelm: false
                     installKubectl: false
+                    resolveImageDigests: false
 
                 - template: pullrequest/step-addprcomment.yml
                   parameters:
@@ -270,4 +269,3 @@ stages:
                       | Self-Service POS | https://selfservicepos.fastfood.$(namespace).aksdemo.4tecture.ch |
                       | Kitchen Monitor | https://kitchenmonitor.fastfood.$(namespace).aksdemo.4tecture.ch |
                       | Customer Order Status | https://customerorderstatus.fastfood.$(namespace).aksdemo.4tecture.ch |
-

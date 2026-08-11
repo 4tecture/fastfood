@@ -1,1 +1,61 @@
 @import 'tailwindcss';
+
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  src: url('/fonts/bricolage-grotesque-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Paytone One';
+  src: url('/fonts/paytone-one-latin.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --ff-ground:          #fff8e9;
+  --ff-ground-2:        #ffedc2;
+  --ff-ink:             #201b18;
+  --ff-ink-2:           #65584f;
+  --ff-accent:          #d93622;
+  --ff-accent-h:        #b72517;
+  --ff-highlight:       #ffd43b;
+  --ff-highlight-ink:   #201b18;
+  --ff-rule:            #dbcdb6;
+  --ff-btn-txt:         #ffffff;
+  --ff-cart-ground:     #ffd43b;
+  --ff-cart-ink:        #201b18;
+  --ff-cart-muted:      #665719;
+  --ff-cart-rule:       #b99a21;
+  --ff-cart-cta:        #201b18;
+  --ff-cart-cta-text:   #fff8e9;
+  --ff-focus:           #1769e0;
+}
+
+.dark {
+  --ff-ground:          #18120f;
+  --ff-ground-2:        #261a14;
+  --ff-ink:             #fff6e6;
+  --ff-ink-2:           #c9b6a7;
+  --ff-accent:          #ff5a3d;
+  --ff-accent-h:        #ff755d;
+  --ff-highlight:       #ffd43b;
+  --ff-highlight-ink:   #201b18;
+  --ff-rule:            #4c382e;
+  --ff-btn-txt:         #18120f;
+  --ff-cart-ground:     #ffd43b;
+  --ff-cart-ink:        #201b18;
+  --ff-cart-muted:      #665719;
+  --ff-cart-rule:       #b99a21;
+  --ff-cart-cta:        #201b18;
+  --ff-cart-cta-text:   #fff8e9;
+  --ff-focus:           #7db5ff;
+}

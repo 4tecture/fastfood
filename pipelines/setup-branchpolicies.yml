@@ -229,7 +229,7 @@ parameters:
       messageText: 'Please review the frontend changes'
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: ubuntu-24.04
 
 steps:
 - checkout: none
@@ -691,4 +691,3 @@ steps:
   env:
     AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
   displayName: 'Configure auto-included reviewers'
-

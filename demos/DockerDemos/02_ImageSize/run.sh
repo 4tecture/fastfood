@@ -1,27 +1,13 @@
-#!/bin/bash
-set -e
-
-# Base image name prefix for the demo
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib.sh"
 IMAGE_NAME_BASE="financeservice-demo-imagesize"
 
-# Build the Standard (non-optimized) image
-docker build -t "${IMAGE_NAME_BASE}-standard" -f Dockerfile --target base_standard ../../
+for target in base_standard base_alpine base_chiseled base_chiseled_extra; do
+  suffix="${target#base_}"
+  docker build --tag "${IMAGE_NAME_BASE}-${suffix//_/-}" --file "$SCRIPT_DIR/Dockerfile" --target "$target" "$FASTFOOD_SRC_DIR"
+done
 
-# Build the Optimized image (using default ASP.NET runtime)
-#docker build -t "${IMAGE_NAME_BASE}-optimized" -f Dockerfile --target base_optimized ../../
-
-# Build the Alpine optimized image
-docker build -t "${IMAGE_NAME_BASE}-alpine" -f Dockerfile --target base_alpine ../../
-
-# Build the Chiseled optimized image
-docker build -t "${IMAGE_NAME_BASE}-chiseled" -f Dockerfile --target base_chiseled ../../
-
-# Build the Chiseled extra optimized image
-docker build -t "${IMAGE_NAME_BASE}-chiseled-extra" -f Dockerfile --target base_chiseled_extra ../../
-
-# Build the AOT apline image
-#docker build -t "${IMAGE_NAME_BASE}-alpine-aot" -f Dockerfile --target base_alpine_aot ../../
-
-# List the built images with their sizes for comparison
-echo "Docker images for comparison:"
-docker images | grep "${IMAGE_NAME_BASE}"
+docker image ls --format '{{.Repository}}\t{{.Size}}' | sort | grep "$IMAGE_NAME_BASE"
+smoke_finance_image "${IMAGE_NAME_BASE}-chiseled-extra" "demo-image-size" 18085

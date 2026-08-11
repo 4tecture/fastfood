@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FastFood.Common.Settings;
+using FastFood.Common.Health;
+using FastFood.Common.ServiceInvocation;
 using FastFood.Observability.Common;
 using FinanceService.Observability;
 using FrontendKitchenMonitor.Controllers;
@@ -16,6 +18,7 @@ builder.Services.AddDaprClient(builder => builder
     .UseHttpEndpoint($"http://localhost:{daprHttpPort}")
     .UseGrpcEndpoint($"http://localhost:{daprGrpcPort}")
     .UseJsonSerializationOptions(new JsonSerializerOptions().ConfigureJsonSerializerOptions()));
+builder.Services.AddDaprServiceInvocation(builder.Configuration, 3900);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -25,7 +28,7 @@ builder.Services.AddControllers()
     .AddDapr();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddHealthChecks();
+builder.Services.AddFastFoodHealthChecks(builder.Configuration);
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -48,6 +51,6 @@ app.MapControllers();
 app.MapSubscribeHandler();
 app.MapHub<KitchenWorkUpdateHub>("/kitchenorderupdatehub");
 
-app.MapHealthChecks("/healthz");
+app.MapFastFoodHealthChecks();
 
 app.Run();

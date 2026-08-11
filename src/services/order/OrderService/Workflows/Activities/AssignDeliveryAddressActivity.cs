@@ -30,14 +30,14 @@ public partial class AssignDeliveryAddressActivity : WorkflowActivity<AssignDeli
             order.Customer.DeliveryAddress = input.Address;
             await _orderStorage.UpdateOrder(order);
             await _daprClient.PublishEventAsync(FastFoodConstants.PubSubName, FastFoodConstants.EventNames.OrderUpdated, order.ToDto());
-            LogAssignedDeliveryAddress(context.InstanceId, order.Id, order.Customer.DeliveryAddress.ToString());
+            LogAssignedDeliveryAddress(context.InstanceId, order.Id, order.Customer.DeliveryAddress.ToString() ?? string.Empty);
         }
         else
         {
-            LogAssignedDeliveryAddressFailed(context.InstanceId, input.OrderId, input.Address.ToString());
+            LogAssignedDeliveryAddressFailed(context.InstanceId, input.OrderId, input.Address.ToString() ?? string.Empty);
         }
 
-        return order;
+        return order ?? throw new InvalidOperationException($"Order {input.OrderId} was not found.");
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "[Workflow {instanceId}] Assigned delivery address {address} to order {orderId}")]
