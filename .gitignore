@@ -9,6 +9,10 @@
 *.userosscache
 *.sln.docstates
 
+# Local agent/browser evidence
+output/playwright/
+.playwright-cli/
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

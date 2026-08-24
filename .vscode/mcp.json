@@ -1,16 +1,19 @@
 {
     "servers": {
-        // "fastfoodmcp": {
-        //     "type": "stdio",
-        //     "command": "docker",
-        //     "args": [
-        //         "run",
-        //         "-i",
-        //         "--rm",
-        //         "fastfoodmcp"
-        //     ],
-        //     "env": {}
-        // },
+        "azure-devops": {
+            "type": "http",
+            "url": "https://mcp.dev.azure.com/4tecture-demo",
+            "headers": {
+                "X-MCP-Toolsets": "wit"
+            }
+        },
+        "github": {
+            "type": "http",
+            "url": "https://api.githubcopilot.com/mcp/",
+            "headers": {
+                "X-MCP-Toolsets": "repos,issues"
+            }
+        }
     },
     "inputs": []
 }
