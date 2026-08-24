@@ -24,25 +24,6 @@ The Docker socket is exposed to Traefik only through a read-only API proxy.
 Set `FASTFOOD_ROTATE_CERTIFICATES=true` when an intentional local certificate
 rotation is required.
 
-The default is the simplified workshop stack: Finance uses its in-memory
-database and application/Dapr telemetry exporters are disabled. To run the
-complete SQL and observability setup from `main`, enable full mode:
-
-```bash
-./start-compose.sh --full -d
-# PowerShell: ./start-compose.ps1 --full -d
-```
-
-The direct Compose equivalent is:
-
-```bash
-docker compose \
-  -f docker-compose.yml \
-  -f docker-compose.full.yml \
-  --profile full \
-  up --build -d
-```
-
 After that one-time certificate bootstrap, the familiar workshop commands work
 directly and do not require `--env-file`:
 
@@ -52,9 +33,11 @@ docker compose ps
 docker compose down
 ```
 
-The SQL password is only used by full mode. Set `MSSQL_SA_PASSWORD` to override
-the clearly marked local-demo fallback, or use `start-compose.*` once to create
-a random `.env` value. Existing `.env.local` files are migrated by the launchers.
+For these direct commands, Compose uses the clearly marked local-demo SQL
+password from `docker-compose.yml`. Set `MSSQL_SA_PASSWORD` to override it, or
+use `start-compose.*` once to create a random `.env` value that subsequent
+plain Compose commands load automatically. Existing `.env.local` files are
+migrated by the launchers.
 
 Do not use the Compose stack as a production deployment. Its local dashboards,
 self-signed certificates, SQL `sa` login, and infrastructure services are

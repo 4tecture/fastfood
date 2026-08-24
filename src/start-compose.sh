@@ -6,17 +6,6 @@ LOCAL_ENV="$SCRIPT_DIR/.env"
 LEGACY_LOCAL_ENV="$SCRIPT_DIR/.env.local"
 CERT_GENERATOR="$SCRIPT_DIR/../infrastructure-dev/dapr/certs/generate.sh"
 PROXY_CERT_GENERATOR="$SCRIPT_DIR/../infrastructure-dev/proxy/certs/generate.sh"
-FULL_COMPOSE_FILE="$SCRIPT_DIR/docker-compose.full.yml"
-
-FULL_MODE=false
-PASSTHROUGH_ARGS=()
-for arg in "$@"; do
-  if [ "$arg" = "--full" ]; then
-    FULL_MODE=true
-  else
-    PASSTHROUGH_ARGS+=("$arg")
-  fi
-done
 
 for tool in docker openssl step mkcert; do
   command -v "$tool" >/dev/null 2>&1 || {
@@ -58,16 +47,4 @@ if [ "${FASTFOOD_ROTATE_CERTIFICATES:-false}" = "true" ] ||
 else
   echo "Using existing local Traefik certificate."
 fi
-
-COMPOSE_ARGS=(
-  --env-file "$LOCAL_ENV"
-  --file "$SCRIPT_DIR/docker-compose.yml"
-)
-if [ "$FULL_MODE" = "true" ]; then
-  COMPOSE_ARGS+=(--file "$FULL_COMPOSE_FILE" --profile full)
-  echo "Starting the full stack (SQL and observability enabled)."
-else
-  echo "Starting the simplified HOL stack. Use --full for SQL and observability."
-fi
-
-docker compose "${COMPOSE_ARGS[@]}" up --build "${PASSTHROUGH_ARGS[@]}"
+docker compose --env-file "$LOCAL_ENV" --file "$SCRIPT_DIR/docker-compose.yml" up --build "$@"

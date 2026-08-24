@@ -5,9 +5,6 @@ $localEnvironment = Join-Path $scriptDirectory '.env'
 $legacyLocalEnvironment = Join-Path $scriptDirectory '.env.local'
 $certificateScriptDirectory = Join-Path $scriptDirectory '../infrastructure-dev/dapr/certs'
 $certDirectory = Join-Path $certificateScriptDirectory 'generated'
-$fullComposeFile = Join-Path $scriptDirectory 'docker-compose.full.yml'
-$fullMode = $args -contains '--full'
-$passThroughArguments = @($args | Where-Object { $_ -ne '--full' })
 
 foreach ($tool in @('docker', 'step', 'mkcert')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
@@ -61,16 +58,4 @@ else {
     Write-Host 'Using existing local Traefik certificate.'
 }
 
-$composeArguments = @(
-    '--env-file', $localEnvironment,
-    '--file', "$scriptDirectory/docker-compose.yml"
-)
-if ($fullMode) {
-    $composeArguments += @('--file', $fullComposeFile, '--profile', 'full')
-    Write-Host 'Starting the full stack (SQL and observability enabled).'
-}
-else {
-    Write-Host 'Starting the simplified HOL stack. Use --full for SQL and observability.'
-}
-
-& docker compose @composeArguments up --build @passThroughArguments
+& docker compose --env-file $localEnvironment --file "$scriptDirectory/docker-compose.yml" up --build @args
