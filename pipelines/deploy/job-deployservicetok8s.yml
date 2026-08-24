@@ -23,7 +23,7 @@ parameters:
   - name: pool
     type: object
     default:
-      vmImage: 'ubuntu-latest'
+      vmImage: 'ubuntu-24.04'
   - name: container
     type: string
     default: ''
@@ -36,6 +36,18 @@ parameters:
   - name: variables
     type: object
     default: {}
+  - name: bootstrapPrEnvironment
+    type: boolean
+    default: false
+  - name: pullRequestId
+    type: string
+    default: ''
+  - name: baselineWaitTimeoutSeconds
+    type: number
+    default: 1800
+  - name: resolveImageDigests
+    type: boolean
+    default: true
 
 jobs:
   - deployment: ${{ parameters.jobName }}
@@ -55,6 +67,45 @@ jobs:
                 - script: |
                     echo "##vso[build.updatebuildnumber]$(releaseBuildNumber)"
                   displayName: 'Update Release Build Number'
+            - ${{ if eq(parameters.bootstrapPrEnvironment, true) }}:
+                - template: step-bootstrapprnamespace.yml
+                  parameters:
+                    kubernetesDeploymentServiceConnection: '${{ parameters.kubernetesDeploymentServiceConnection }}'
+                    pullRequestId: '${{ parameters.pullRequestId }}'
+                # All branch-policy pipelines start in parallel. Wait until the
+                # initializer has installed the main-branch baseline before this
+                # service upgrades it to the PR artifact. This prevents the
+                # initializer from overwriting the PR version in a Helm race.
+                - bash: |
+                    set -euo pipefail
+
+                    FASTFOOD_RELEASE='${{ parameters.artifactName }}'
+                    FASTFOOD_NAMESPACE='${{ parameters.namespace }}'
+                    FASTFOOD_TIMEOUT='${{ parameters.baselineWaitTimeoutSeconds }}'
+                    FASTFOOD_DEADLINE=$((SECONDS + FASTFOOD_TIMEOUT))
+
+                    echo "Waiting for initializer baseline release ${FASTFOOD_RELEASE} in ${FASTFOOD_NAMESPACE}..."
+                    while (( SECONDS < FASTFOOD_DEADLINE )); do
+                      FASTFOOD_STATUS="$(helm status "${FASTFOOD_RELEASE}" --namespace "${FASTFOOD_NAMESPACE}" --output json 2>/dev/null | jq -r '.info.status // empty' || true)"
+                      case "${FASTFOOD_STATUS}" in
+                        deployed)
+                          echo "Baseline release is deployed; applying the PR artifact."
+                          exit 0
+                          ;;
+                        failed)
+                          echo "Initializer baseline release ${FASTFOOD_RELEASE} failed." >&2
+                          exit 1
+                          ;;
+                        *)
+                          echo "Baseline status: ${FASTFOOD_STATUS:-not installed}; checking again in 10 seconds."
+                          sleep 10
+                          ;;
+                      esac
+                    done
+
+                    echo "Timed out waiting for initializer baseline release ${FASTFOOD_RELEASE}." >&2
+                    exit 1
+                  displayName: 'Wait for PR baseline release'
             - download: CIBuild
             - template: step-deployhelmchart.yml
               parameters:
@@ -66,3 +117,4 @@ jobs:
                 tokenizerSecrets: ${{ parameters.tokenizerSecrets }}
                 installHelm: false
                 installKubectl: false
+                resolveImageDigests: ${{ parameters.resolveImageDigests }}

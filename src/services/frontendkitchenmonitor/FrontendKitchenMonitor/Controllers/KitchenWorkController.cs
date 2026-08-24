@@ -1,6 +1,6 @@
 ﻿using System.Net;
-using Dapr.Client;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using KitchenService.Common.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,14 +10,14 @@ namespace FrontendKitchenMonitor.Controllers;
 [Route("api/[controller]")]
 public class KitchenWorkController : ControllerBase
 {
-    private readonly DaprClient _daprClient;
+    private readonly IDaprServiceInvoker _serviceInvoker;
     private readonly ILogger<KitchenWorkController> _logger;
     private const string ApiPrefix = "api/kitchenwork";
 
 
-    public KitchenWorkController(DaprClient daprClient, ILogger<KitchenWorkController> logger)
+    public KitchenWorkController(IDaprServiceInvoker serviceInvoker, ILogger<KitchenWorkController> logger)
     {
-        _daprClient = daprClient;
+        _serviceInvoker = serviceInvoker;
         _logger = logger;
     }
     
@@ -27,7 +27,8 @@ public class KitchenWorkController : ControllerBase
     {
         try
         {
-            var order = await _daprClient.InvokeMethodAsync<IEnumerable<KitchenOrderDto>>(HttpMethod.Get, FastFoodConstants.Services.KitchenService, $"{ApiPrefix}/pendingorders");
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Get, FastFoodConstants.Services.KitchenService, $"{ApiPrefix}/pendingorders");
+            var order = await _serviceInvoker.InvokeMethodAsync<IEnumerable<KitchenOrderDto>>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return Ok(order);
         }
         catch
@@ -41,18 +42,13 @@ public class KitchenWorkController : ControllerBase
     {
         try
         {
-            var order = await _daprClient.InvokeMethodAsync<KitchenOrderDto>(HttpMethod.Get, FastFoodConstants.Services.KitchenService, $"{ApiPrefix}/pendingorder/{id}");
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Get, FastFoodConstants.Services.KitchenService, $"{ApiPrefix}/pendingorder/{id}");
+            var order = await _serviceInvoker.InvokeMethodAsync<KitchenOrderDto>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return Ok(order);
         }
-        catch (InvocationException ex)
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
-            if (ex.InnerException is HttpRequestException httpRequestException &&
-                httpRequestException.StatusCode == HttpStatusCode.NotFound)
-            {
-                return NotFound("Order not found or is not pending.");
-            }
-            _logger.LogError(ex, "Failed to retrieve order.");
-            return StatusCode(500, "Failed to retrieve order.");
+            return NotFound("Order not found or is not pending.");
         }
         catch(Exception ex)
         {
@@ -67,7 +63,8 @@ public class KitchenWorkController : ControllerBase
     {
         try
         {
-            var order = await _daprClient.InvokeMethodAsync<IEnumerable<KitchenOrderItemDto>>(HttpMethod.Get, FastFoodConstants.Services.KitchenService, $"{ApiPrefix}/pendingitems");
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Get, FastFoodConstants.Services.KitchenService, $"{ApiPrefix}/pendingitems");
+            var order = await _serviceInvoker.InvokeMethodAsync<IEnumerable<KitchenOrderItemDto>>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return Ok(order);
         }
         catch
@@ -82,7 +79,8 @@ public class KitchenWorkController : ControllerBase
     {
         try
         {
-            var item = await _daprClient.InvokeMethodAsync<KitchenOrderItemDto>(HttpMethod.Post, FastFoodConstants.Services.KitchenService, $"{ApiPrefix}/itemfinished/{id}");
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.KitchenService, $"{ApiPrefix}/itemfinished/{id}");
+            var item = await _serviceInvoker.InvokeMethodAsync<KitchenOrderItemDto>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return Ok(item);
         }
         catch

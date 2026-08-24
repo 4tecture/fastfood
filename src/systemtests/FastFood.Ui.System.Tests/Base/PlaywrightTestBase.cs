@@ -27,7 +27,8 @@ public abstract class PlaywrightTestBase : PageTest
     protected PlaywrightTestBase()
     {
         Configuration = new TestConfiguration();
-        var testRunTimestamp = _kvStorage.GetOrAdd($"TestRunTimestamp{TestContext.Current.TestCollection.UniqueID}", DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
+        var testCollectionId = TestContext.Current.TestCollection?.UniqueID ?? "default";
+        var testRunTimestamp = _kvStorage.GetOrAdd($"TestRunTimestamp{testCollectionId}", DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
         VideoBaseDirectory = Path.Combine(Configuration.Video.Directory, testRunTimestamp);
         
         if (Configuration.Video.Enabled)

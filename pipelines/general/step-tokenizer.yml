@@ -24,6 +24,7 @@ parameters:
 
 steps:
   - script: |
+      set -eu
       echo "Tokenizing files matching pattern: ${{ parameters.filePattern }}"
       if [ -f "${{ parameters.filePattern }}" ]; then
         files="${{ parameters.filePattern }}"
@@ -38,15 +39,17 @@ steps:
         for token in $tokens; do
           # Remove leading and trailing underscores to get the variable name
           varname=$(echo $token | sed 's/^__//;s/__$//')
-          value=$(printenv "$varname")
+          value=$(printenv "$varname" || true)
           if [ -z "$value" ]; then
             # Try uppercase variant (Azure Pipelines exposes env vars as uppercase)
-            value=$(printenv "$(echo $varname | tr '[:lower:]' '[:upper:]')")
+            value=$(printenv "$(echo "$varname" | tr '[:lower:]' '[:upper:]')" || true)
           fi
           if [ -n "$value" ]; then
-            echo "Replacing $token with value of $varname: $value"
-            # Use perl for in-place replacement (handles special chars)
-            perl -pi -e "s/$token/$value/g" "$file"
+            echo "Replacing $token from secret variable $varname"
+            # Read the replacement from the environment so it is neither logged
+            # nor interpreted as Perl code when it contains metacharacters.
+            FASTFOOD_TOKEN="$token" FASTFOOD_TOKEN_VALUE="$value" \
+              perl -pi -e 's/\Q$ENV{FASTFOOD_TOKEN}\E/$ENV{FASTFOOD_TOKEN_VALUE}/g' "$file"
           else
             echo "No environment variable found for $token ($varname), skipping."
           fi

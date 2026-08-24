@@ -2,6 +2,7 @@
 using Dapr.Actors.Runtime;
 using Dapr.Client;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using FastFood.FeatureManagement.Common.Constants;
 using FastFood.FeatureManagement.Common.Services;
 using FinanceService.Observability;
@@ -17,12 +18,14 @@ public class OrderActor : Actor, IOrderActor, IRemindable
 {
     private const string ReminderLostOrderDuringCreation = "OrderLostDuringCreation";
     private readonly DaprClient _daprClient;
+    private readonly IDaprServiceInvoker _serviceInvoker;
     private readonly IOrderServiceActorObservability _observability;
     private readonly IObservableFeatureManager _featureManager;
 
-    public OrderActor(ActorHost host, DaprClient daprClient, IOrderServiceActorObservability observability, IObservableFeatureManager featureManager) : base(host)
+    public OrderActor(ActorHost host, DaprClient daprClient, IDaprServiceInvoker serviceInvoker, IOrderServiceActorObservability observability, IObservableFeatureManager featureManager) : base(host)
     {
         _daprClient = daprClient;
+        _serviceInvoker = serviceInvoker;
         _observability = observability;
         _featureManager = featureManager;
     }
@@ -204,7 +207,8 @@ public class OrderActor : Actor, IOrderActor, IRemindable
             }
             
             // Send to FinanceService with pricing breakdown
-            await _daprClient.InvokeMethodAsync(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/newOrder", order.ToFinanceDto(serviceFee, discount));
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/newOrder", order.ToFinanceDto(serviceFee, discount));
+            await _serviceInvoker.InvokeMethodAsync<object>(request);
 
             await UnregisterReminderAsync(ReminderLostOrderDuringCreation);
 
@@ -289,7 +293,8 @@ public class OrderActor : Actor, IOrderActor, IRemindable
             
             await _daprClient.PublishEventAsync(FastFoodConstants.PubSubName, FastFoodConstants.EventNames.OrderClosed , order.ToDto());
             
-            await _daprClient.InvokeMethodAsync(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/closeOrder", order.Id);
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/closeOrder", order.Id);
+            await _serviceInvoker.InvokeMethodAsync<object>(request);
             
             return order;
         }

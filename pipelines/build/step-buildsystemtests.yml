@@ -21,26 +21,17 @@ steps:
       projects: '${{ parameters.systemTestProject }}/*.csproj'
       feedsToUse: 'select'
 
-  # Build system tests
+  # Build the runnable MTP test artifact. Test projects are applications under
+  # Microsoft.Testing.Platform, so retain the complete build output rather than
+  # a publish output that can omit test-only runtime extensions.
   - task: DotNetCoreCLI@2
-    displayName: 'Build System Tests'
+    displayName: 'Build System Tests Artifact'
     inputs:
       command: 'build'
       projects: '${{ parameters.systemTestProject }}/*.csproj'
-      arguments: '--configuration ${{ parameters.buildConfiguration }} --no-restore'
+      arguments: '--configuration ${{ parameters.buildConfiguration }} --output $(Build.ArtifactStagingDirectory)/${{ parameters.artifactName }} --no-restore'
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
-
-  # Publish system tests to staging directory
-  - task: DotNetCoreCLI@2
-    displayName: 'Publish System Tests'
-    inputs:
-      command: 'publish'
-      publishWebProjects: false
-      projects: '${{ parameters.systemTestProject }}/*.csproj'
-      arguments: '--configuration ${{ parameters.buildConfiguration }} --output $(Build.ArtifactStagingDirectory)/${{ parameters.artifactName }} --no-build'
-      zipAfterPublish: false
-      modifyOutputPath: false
 
   # Include test configuration files
   - task: CopyFiles@2
@@ -53,6 +44,38 @@ steps:
         Configuration/**
       TargetFolder: '$(Build.ArtifactStagingDirectory)/${{ parameters.artifactName }}'
       OverWrite: true
+
+  # Carry the repository-level runner selection with the staged module so
+  # deployment verification does not silently fall back to VSTest.
+  - task: CopyFiles@2
+    displayName: 'Copy Microsoft Testing Platform Configuration'
+    inputs:
+      SourceFolder: '$(Build.SourcesDirectory)'
+      Contents: 'global.json'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/${{ parameters.artifactName }}'
+      OverWrite: true
+
+  # Fail in CI if the staged artifact cannot be discovered by the same MTP
+  # driver used later by the deployment pipelines.
+  - bash: |
+      set -euo pipefail
+
+      FASTFOOD_TEST_ROOT='$(Build.ArtifactStagingDirectory)/${{ parameters.artifactName }}'
+      mapfile -t FASTFOOD_TEST_MODULES < <(find "${FASTFOOD_TEST_ROOT}" -type f -name '*.Ui.System.Tests.dll' ! -path '*/ref/*' -print)
+      if [ "${#FASTFOOD_TEST_MODULES[@]}" -ne 1 ]; then
+        echo "Expected exactly one UI system-test module, found ${#FASTFOOD_TEST_MODULES[@]}." >&2
+        printf '%s\n' "${FASTFOOD_TEST_MODULES[@]}" >&2
+        exit 1
+      fi
+
+      FASTFOOD_TEST_MODULE="${FASTFOOD_TEST_MODULES[0]#"${FASTFOOD_TEST_ROOT}/"}"
+      dotnet test \
+        --test-modules "${FASTFOOD_TEST_MODULE}" \
+        --root-directory "${FASTFOOD_TEST_ROOT}" \
+        --list-tests \
+        --minimum-expected-tests 1
+    displayName: 'Verify System Test Artifact Discovery'
+    workingDirectory: '$(Build.ArtifactStagingDirectory)/${{ parameters.artifactName }}'
 
   # Publish system tests as pipeline artifact
   - task: PublishPipelineArtifact@1

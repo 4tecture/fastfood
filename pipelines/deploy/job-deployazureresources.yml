@@ -56,7 +56,7 @@ parameters:
   - name: pool
     type: object
     default:
-      vmImage: 'ubuntu-latest'
+      vmImage: 'ubuntu-24.04'
   - name: container
     type: string
     default: ''

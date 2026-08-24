@@ -1,0 +1,25 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fastfood-pr-environment-manager
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
+rules:
+  # Namespace names cannot be constrained with RBAC resourceNames on CREATE.
+  # pr-environment-guardrails.yml supplies that mandatory name restriction.
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    # list is used only to detect Redis DB collisions between active PR
+    # namespaces before Dapr components are installed.
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["rolebindings"]
+    verbs: ["get", "create", "update", "patch"]
+  # Permit exactly this reusable ClusterRole to be bound in a PR namespace.
+  # The admission policy additionally validates the RoleBinding's namespace,
+  # name, roleRef, and subject.
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles"]
+    resourceNames: ["fastfood-release-manager"]
+    verbs: ["bind"]

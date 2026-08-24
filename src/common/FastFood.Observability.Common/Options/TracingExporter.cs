@@ -5,6 +5,5 @@ namespace FastFood.Observability.Common.Options
         None,
         Console,
         Otlp,
-        Zipkin,
     }
 }

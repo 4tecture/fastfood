@@ -163,6 +163,7 @@ DocProject/Help/html
 
 # Click-Once directory
 publish/
+**/TestResults/
 
 # Publish Web Output
 *.[Pp]ublish.xml
@@ -338,5 +339,8 @@ trivy_*.json
 .DS_Store
 
 **/certs/*.pem
+infrastructure-dev/dapr/certs/generated/
+.env.local
+/src/.env
 
 .playwright-mcp/

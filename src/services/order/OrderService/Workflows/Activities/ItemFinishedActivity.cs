@@ -60,7 +60,7 @@ public partial class ItemFinishedActivity : WorkflowActivity<ItemFinishedEvent, 
             LogItemFinishedFailed(context.InstanceId, input.OrderId, input.ItemId);
         }
 
-        return order;
+        return order ?? throw new InvalidOperationException($"Order {input.OrderId} was not found.");
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "[Workflow {instanceId}] Finished item {itemId} in order {orderId}")]

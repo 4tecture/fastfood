@@ -37,7 +37,7 @@ public partial class AssignCustomerActivity : WorkflowActivity<AssignCustomerEve
             LogAssignedCustomerFailed(context.InstanceId, input.OrderId, input.Customer.Id);
         }
 
-        return order;
+        return order ?? throw new InvalidOperationException($"Order {input.OrderId} was not found.");
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "[Workflow {instanceId}] Assigned customer {customerId} to order {orderId}")]

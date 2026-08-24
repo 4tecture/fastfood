@@ -6,10 +6,16 @@ metadata:
     {{- include "frontendkitchenmonitor.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
+  automountServiceAccountToken: false
+  securityContext:
+    seccompProfile: { type: RuntimeDefault }
   containers:
     - name: wget
-      image: busybox
+      image: busybox@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+      securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 65534, capabilities: { drop: ["ALL"] } }
       command: ['wget']
-      args: ['{{ include "frontendkitchenmonitor.fullname" . }}:{{ .Values.service.port }}']
+      args: ['-qO-', 'http://{{ include "frontendkitchenmonitor.fullname" . }}:{{ .Values.service.port }}/health/ready']
+      resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { cpu: 50m, memory: 32Mi } }
   restartPolicy: Never

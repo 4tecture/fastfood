@@ -1,10 +1,11 @@
 image:
   repository: __azureContainerRegistry__/frontendcustomerorderstatus
   tag: __artifactVersion__
+  digest: __imageDigest__
 
 
 ingress:
-  enabled: enabled
+  enabled: true
   className: "nginx"
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-cluster-staging
@@ -12,7 +13,7 @@ ingress:
     - host: customerorderstatus.fastfood.__namespace__.aksdemo.4tecture.ch
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
   tls: 
   - secretName: frontendcustomerorderstatus-tls
     hosts:

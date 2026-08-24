@@ -1,3 +1,9 @@
 image:
   repository: __azureContainerRegistry__/orderservice
   tag: __artifactVersion__
+  digest: __imageDigest__
+orderserviceactors:
+  image:
+    repository: __azureContainerRegistry__/orderservice-actors
+    tag: __artifactVersion__
+    digest: __actorsImageDigest__

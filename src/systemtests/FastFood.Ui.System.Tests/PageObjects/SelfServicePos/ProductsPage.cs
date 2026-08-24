@@ -1,4 +1,6 @@
 using Microsoft.Playwright;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace FastFood.Ui.System.Tests.PageObjects.SelfServicePos;
 
@@ -85,10 +87,26 @@ public class ProductsPage : BasePage
     /// <param name="productName">The display name of the product to remove</param>
     public async Task RemoveProductAsync(string productName)
     {
-        var cartItemLocator = Page.Locator($"text=/{productName} - \\d+ x/");
-        var removeButton = cartItemLocator.Locator("..").GetByRole(AriaRole.Button, new() { Name = "Remove" });
-        await removeButton.ClickAsync();
-        await Task.Delay(300, Xunit.TestContext.Current.CancellationToken);
+        var cartItems = Page.Locator("[data-testid^='cart-item-'][data-product-id]");
+        var count = await cartItems.CountAsync();
+
+        for (var index = 0; index < count; index++)
+        {
+            var cartItem = cartItems.Nth(index);
+            if (await cartItem.GetAttributeAsync("data-product-name") != productName)
+            {
+                continue;
+            }
+
+            var cartItemTestId = await cartItem.GetAttributeAsync("data-testid")
+                ?? throw new InvalidOperationException($"Cart item for '{productName}' has no test ID");
+            var stableCartItem = Page.GetByTestId(cartItemTestId);
+            await stableCartItem.Locator("[data-testid^='remove-item-']").ClickAsync();
+            await stableCartItem.WaitForAsync(new() { State = WaitForSelectorState.Detached });
+            return;
+        }
+
+        throw new InvalidOperationException($"Product '{productName}' was not found in the cart");
     }
 
     /// <summary>
@@ -121,13 +139,8 @@ public class ProductsPage : BasePage
     /// <returns>Total price as decimal</returns>
     public async Task<decimal> GetTotalAsync()
     {
-        var totalText = await Page.Locator("strong:has-text('Total:')").Locator("..").TextContentAsync() ?? "";
-        var match = global::System.Text.RegularExpressions.Regex.Match(totalText, @"\$([0-9.]+)");
-        if (match.Success)
-        {
-            return decimal.Parse(match.Groups[1].Value);
-        }
-        return 0;
+        var totalText = await Page.GetByTestId("cart-total-value").TextContentAsync() ?? "";
+        return ParseCurrency(totalText);
     }
 
     /// <summary>
@@ -239,7 +252,7 @@ public class ProductsPage : BasePage
         }
 
         // Count cart items - now using item.id based data-testid
-        var cartItems = Page.Locator("[data-testid^='cart-item-']:not([data-testid*='-text'])");
+        var cartItems = Page.Locator("[data-testid^='cart-item-'][data-product-id]");
         return await cartItems.CountAsync();
     }
 
@@ -254,50 +267,51 @@ public class ProductsPage : BasePage
             return items;
         }
 
-        // Get all cart item text elements - now using item.id
-        var cartItemTexts = Page.Locator("[data-testid^='cart-item-text-']");
-        var count = await cartItemTexts.CountAsync();
+        var cartItems = Page.Locator("[data-testid^='cart-item-'][data-product-id]");
+        var count = await cartItems.CountAsync();
 
         for (int i = 0; i < count; i++)
         {
-            var textElement = cartItemTexts.Nth(i);
-            
-            // Get the parent cart item to access data attributes
-            var parentLocator = textElement.Locator("..");
-            var productId = await parentLocator.GetAttributeAsync("data-product-id");
-            var productName = await parentLocator.GetAttributeAsync("data-product-name");
-            
-            var itemText = await textElement.TextContentAsync() ?? "";
-            
-            var item = ParseCartItem(itemText, productId, productName);
-            if (item != null)
+            var cartItem = cartItems.Nth(i);
+            var testId = await cartItem.GetAttributeAsync("data-testid");
+            if (testId == null)
             {
-                items.Add(item);
+                continue;
             }
+
+            var itemId = testId["cart-item-".Length..];
+            var productId = await cartItem.GetAttributeAsync("data-product-id");
+            var productName = await cartItem.GetAttributeAsync("data-product-name") ?? "";
+            var quantityText = await cartItem.GetByTestId($"cart-item-text-{itemId}").TextContentAsync() ?? "";
+            var totalText = await cartItem.GetByTestId($"cart-item-price-{itemId}").TextContentAsync() ?? "";
+            var quantityMatch = Regex.Match(quantityText, @"\d+");
+
+            if (!quantityMatch.Success || string.IsNullOrWhiteSpace(productName))
+            {
+                continue;
+            }
+
+            var quantity = int.Parse(quantityMatch.Value, CultureInfo.InvariantCulture);
+            var totalPrice = ParseCurrency(totalText);
+            items.Add(new CartItem
+            {
+                ProductId = productId,
+                ProductName = productName.Trim(),
+                Quantity = quantity,
+                UnitPrice = quantity > 0 ? totalPrice / quantity : 0,
+                TotalPrice = totalPrice
+            });
         }
 
         return items;
     }
 
-    private CartItem? ParseCartItem(string itemText, string? productId, string? productName)
+    private static decimal ParseCurrency(string value)
     {
-        // Format: "ProductName - 1 x $6.99 = $6.99"
-        var regex = new global::System.Text.RegularExpressions.Regex(@"^(.+?)\s*-\s*(\d+)\s*x\s*\$([0-9.]+)\s*=\s*\$([0-9.]+)$");
-        var match = regex.Match(itemText.Trim());
-
-        if (match.Success)
-        {
-            return new CartItem
-            {
-                ProductId = productId,
-                ProductName = match.Groups[1].Value.Trim(),
-                Quantity = int.Parse(match.Groups[2].Value),
-                UnitPrice = decimal.Parse(match.Groups[3].Value),
-                TotalPrice = decimal.Parse(match.Groups[4].Value)
-            };
-        }
-
-        return null;
+        var match = Regex.Match(value, @"-?\$?\s*([0-9]+(?:\.[0-9]+)?)");
+        return match.Success
+            ? decimal.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)
+            : 0;
     }
 
     #endregion

@@ -12,7 +12,7 @@ This demo showcases the implementation of feature flags in the FastFood Delivery
 - **Observability**: Integrated with OpenTelemetry - feature evaluations and usage tracked via metrics and activity tags
 - **Dynamic Updates**: 
   - **Backend**: Azure App Configuration with 30-second cache refresh
-  - **Frontend**: Polling mechanism fetches flags every 30 seconds from backend API
+  - **Frontend**: Polling mechanism fetches flags every 10 seconds from backend API
   - **No page refresh required**: Frontend reactively updates when flags change
 
 ### Frontend Dynamic Polling Architecture
@@ -22,7 +22,7 @@ This demo showcases the implementation of feature flags in the FastFood Delivery
 **Solution**: Client-side polling with server-side evaluation
 
 1. **Frontend Store** (`featureFlags.js`):
-   - Polls `/api/FeatureFlags` endpoint every 30 seconds
+   - Polls `/api/FeatureFlags` endpoint every 10 seconds
    - Matches Azure App Configuration cache refresh interval
    - Vue reactive state automatically updates UI when flags change
    - Cleanup on component unmount prevents memory leaks
@@ -31,19 +31,19 @@ This demo showcases the implementation of feature flags in the FastFood Delivery
    - Evaluates feature flags server-side using `IFeatureManager`
    - Supports user context for targeting filters (percentage rollout)
    - Returns fresh flag values with no-cache headers
-   - Azure App Config refreshes cache every 30 seconds
+   - Azure App Configuration refreshes its feature-flag cache every 5 seconds
 
 3. **Flow Diagram**:
    ```
-   Azure App Config → (30s cache) → Backend IFeatureManager → API Endpoint
+   Azure App Config → (5s cache) → Backend IFeatureManager → API Endpoint
                                                                     ↓
-   Frontend Poll (30s) ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ↓
+   Frontend Poll (10s) ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ← ↓
                                                                     ↓
    Vue Reactive State → Component Re-render → UI Updates
    ```
 
 4. **Benefits**:
-   - ✅ Runtime changes reflected within 30-60 seconds
+   - ✅ Runtime changes normally reflected within about 15 seconds
    - ✅ Percentage rollouts evaluated per-user consistently
    - ✅ Time-window filters work correctly with server time
    - ✅ No client-side flag logic duplication
@@ -65,8 +65,8 @@ This demo showcases the implementation of feature flags in the FastFood Delivery
 ## Setup Instructions
 
 ### Prerequisites
-- .NET 9.0 SDK
-- Node.js 18+ (for frontend)
+- .NET 10 SDK
+- Node.js 24 (for frontend)
 - Docker & Docker Compose (for local infrastructure)
 - Azure subscription (optional, for Azure App Configuration)
 
@@ -74,8 +74,8 @@ This demo showcases the implementation of feature flags in the FastFood Delivery
 
 1. **Start Infrastructure Services**
    ```bash
-   cd infrastructure-dev
-   ./StartInfrastructureServices.ps1
+   cd src
+   ./start-compose.sh -d
    ```
 
 2. **Configure Feature Flags** (Edit service appsettings.json)
@@ -91,10 +91,10 @@ This demo showcases the implementation of feature flags in the FastFood Delivery
    }
    ```
 
-3. **Run Services**
+3. **Verify Services**
    ```bash
-   cd src
-   docker compose up
+   docker compose --env-file .env.local ps
+   curl --fail http://127.0.0.1:8601/health/ready
    ```
 
 ### Azure App Configuration Setup (Optional)
@@ -193,7 +193,7 @@ This demo showcases the implementation of feature flags in the FastFood Delivery
 5. **Toggle via Azure App Configuration** (if configured)
    - Open Azure Portal → App Configuration
    - Disable `LoyaltyProgram` feature
-   - Wait 30 seconds (cache expiration)
+   - Allow up to about 15 seconds for backend refresh and frontend polling
    - Refresh POS → field disappears
 
 **Expected Results**:
@@ -470,7 +470,7 @@ sum(increase(feature_usage_total{feature="DynamicPricing"}[1h]))
 }
 ```
 **Note**: Percentage rollouts are evaluated **server-side** for each frontend poll. The frontend polling mechanism ensures each user gets a consistent evaluation because:
-1. Frontend polls `/api/FeatureFlags` every 30 seconds
+1. Frontend polls `/api/FeatureFlags` every 10 seconds
 2. Backend evaluates the percentage filter using Microsoft.FeatureManagement
 3. The percentage filter uses a consistent hash of the feature name to determine which requests fall into the rollout
 4. Same user gets same result across multiple polls (unless percentage changes)
@@ -543,7 +543,7 @@ public async Task ConfirmOrder_WithLoyaltyProgram_AppliesDiscountCorrectly(bool 
 **Problem**: Changes in Azure App Configuration not reflected in application
 
 **Solutions**:
-1. Check cache expiration (default: 30 seconds)
+1. Check the configured backend refresh interval (currently 5 seconds)
 2. Verify `UseAzureAppConfiguration()` middleware is registered
 3. Confirm connection string/endpoint is correct
 4. Check application logs for Azure App Configuration errors

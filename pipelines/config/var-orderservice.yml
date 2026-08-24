@@ -9,6 +9,9 @@ variables:
   value: 'OrderService'
 - name: dockerRepositoryName
   value: $(serviceName)
+- name: dockerRepositoryNameActors
+  value: $(serviceName)-actors
+- name: dockerFilePathActors
+  value: 'src/services/order/OrderService.Actors/Dockerfile'
 - name: versionTagPrefix
   value: 'orderservice'
-

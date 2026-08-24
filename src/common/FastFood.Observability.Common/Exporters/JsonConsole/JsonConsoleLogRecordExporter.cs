@@ -42,7 +42,7 @@ namespace FastFood.Observability.Common.Exporters.JsonConsole
                             if (record.Attributes != null && record.Attributes.Count > 0)
                             {
                                 // Check if there's an OriginalFormat attribute - which indicates templated logging
-                                string originalFormat = null;
+                                string? originalFormat = null;
                                 var formatAttr = record.Attributes.FirstOrDefault(attr => attr.Key == "{OriginalFormat}");
                                 if (!string.IsNullOrEmpty(formatAttr.Key))
                                 {

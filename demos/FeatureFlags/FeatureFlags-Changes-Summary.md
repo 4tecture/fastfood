@@ -53,15 +53,15 @@
 ```
 1. Admin changes flag in Azure App Configuration
    ↓
-2. Backend cache refreshes (30s interval)
+2. Backend cache refreshes (5s interval)
    ↓
-3. Frontend polls /api/FeatureFlags (30s interval)
+3. Frontend polls /api/FeatureFlags (10s interval)
    ↓
 4. Vue reactive state updates
    ↓
 5. UI automatically re-renders
    
-Total latency: 30-60 seconds (no page refresh needed)
+Expected maximum latency: about 15 seconds (no page refresh needed)
 ```
 
 ### Key Benefits
@@ -79,8 +79,8 @@ Total latency: 30-60 seconds (no page refresh needed)
 1. Start application with DarkMode disabled
 2. Wait for initial load (flags fetched)
 3. Enable DarkMode in appsettings.json (or Azure Portal)
-4. Restart backend (or wait 30s for Azure cache refresh)
-5. Wait up to 30 seconds
+4. Restart backend or allow 5 seconds for Azure refresh
+5. Allow up to 10 more seconds for the frontend poll
 6. **Without refreshing browser**, observe dark theme appears
 
 ### Verify Configuration
@@ -141,7 +141,7 @@ To enable for demo:
 ## Performance Impact
 
 **Network**: 
-- 1 additional HTTP request per frontend instance every 30 seconds
+- 1 additional HTTP request per frontend instance every 10 seconds
 - Payload: ~200 bytes
 - Impact: Negligible
 
@@ -166,17 +166,17 @@ To enable for demo:
 
 ## Questions & Answers
 
-**Q: Why 30 seconds?**
+**Q: Why 10 seconds?**
 A: Matches Azure App Configuration cache refresh interval. Shorter intervals increase load without benefit; longer intervals delay updates unnecessarily.
 
 **Q: What about real-time updates?**
-A: For features requiring <1s latency, use SignalR/WebSockets. For feature flags (which change hours/days), 30s is acceptable.
+A: It keeps demo feedback quick while remaining slower than the 5-second backend refresh. For sub-second changes, use push messaging instead of polling.
 
 **Q: Can users game percentage rollouts?**
 A: No - evaluation happens server-side using deterministic hashing. Same user always gets same result.
 
 **Q: What if polling fails?**
-A: Frontend keeps using last known values. Error logged to console. Next poll attempt in 30s.
+A: Frontend keeps using last known values, logs the error, and retries on the next 10-second poll.
 
 **Q: Does this work offline?**
 A: No - requires server connection. For offline scenarios, use client-side evaluation (with caveats about security and staleness).

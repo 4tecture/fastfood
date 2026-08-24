@@ -23,7 +23,7 @@ public class OrderProcessingServiceActor : IOrderProcessingServiceActor
         var actorId = new ActorId(order.Id.ToString());
         var proxy = ActorProxy.Create<IOrderActor>(actorId, OrderActorName);
         var orderResult = await proxy.CreateOrder(order);
-        _orderEventRouter.RegisterOrderForService(order.Id, OrderEventRoutingTarget.OrderProcessingServiceActor);
+        await _orderEventRouter.RegisterOrderForService(order.Id, OrderEventRoutingTarget.OrderProcessingServiceActor);
     }
 
     public async Task AssignCustomer(Guid orderid, Customer customer)

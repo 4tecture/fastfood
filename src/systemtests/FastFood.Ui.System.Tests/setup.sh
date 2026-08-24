@@ -11,7 +11,7 @@ echo ""
 echo -e "\033[33mChecking .NET installation...\033[0m"
 dotnetVersion=$(dotnet --version 2>&1)
 if [ $? -ne 0 ]; then
-    echo -e "\033[31mERROR: .NET SDK not found. Please install .NET 9.0 or later.\033[0m"
+    echo -e "\033[31mERROR: .NET SDK not found. Please install .NET 10.0 or later.\033[0m"
     exit 1
 fi
 echo -e "\033[32m✓ .NET version: $dotnetVersion\033[0m"
@@ -33,7 +33,7 @@ echo -e "\033[33mInstalling Playwright browsers...\033[0m"
 # Check if pwsh (PowerShell Core) is available
 if command -v pwsh &> /dev/null; then
     echo -e "\033[36mUsing PowerShell Core to run playwright.ps1...\033[0m"
-    pwsh bin/Debug/net9.0/playwright.ps1 install chromium
+    pwsh bin/Debug/net10.0/playwright.ps1 install chromium
     if [ $? -ne 0 ]; then
         echo -e "\033[31mERROR: Failed to install Playwright browsers.\033[0m"
         exit 1

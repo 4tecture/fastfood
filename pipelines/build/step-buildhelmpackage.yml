@@ -7,10 +7,10 @@ parameters:
   default: 
 - name: helmVersion
   type: string
-  default: latest
+  default: 4.2.3
 - name: kubectlVersion
   type: string
-  default: latest
+  default: 1.35.7
 - name: chartPath
   type: string
   default: 
@@ -37,14 +37,13 @@ steps:
     inputs:
       helmVersionToInstall: '${{ parameters.helmVersion }}'
 
-- task: HelmDeploy@0
+- task: HelmDeploy@1
   displayName: 'helm package'
   inputs:
     command: package
     chartPath: ${{ parameters.chartPath }}
     destination: '${{ parameters.artifactStagingDirectory }}/${{ parameters.artifactName }}'
     chartVersion: '${{ parameters.chartVersion }}'
-    save: false
 
 - script: |
     echo "Copying values file to artifact staging directory"

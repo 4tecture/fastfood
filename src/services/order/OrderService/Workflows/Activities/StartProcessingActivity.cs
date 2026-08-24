@@ -43,7 +43,7 @@ public partial class StartProcessingActivity : WorkflowActivity<StartProcessingE
             LogStartProcessingFailed(context.InstanceId, input.OrderId);
         }
 
-        return order;
+        return order ?? throw new InvalidOperationException($"Order {input.OrderId} was not found.");
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "[Workflow {instanceId}] Started processing order {orderId}")]

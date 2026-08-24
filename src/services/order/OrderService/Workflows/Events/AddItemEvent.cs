@@ -6,5 +6,5 @@ public class AddItemEvent
 {
     public static string Name => nameof(AddItemEvent);
     public Guid OrderId { get; set; }
-    public OrderItem Item { get; set; }
+    public required OrderItem Item { get; set; }
 }

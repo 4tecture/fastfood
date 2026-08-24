@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
-using Dapr.Client;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using FinanceService.Observability;
 using Microsoft.AspNetCore.Mvc;
 using OrderService.Common.Dtos;
@@ -11,14 +11,14 @@ namespace FrontendSelfServicePos.Controllers;
 [Route("api/[controller]")]
 public partial class OrderController : ControllerBase
 {
-    private readonly DaprClient _daprClient;
+    private readonly IDaprServiceInvoker _serviceInvoker;
     private readonly ILogger<OrderController> _logger;
     private readonly IFrontendSelfServicePosObservability _observability;
     private const string ApiPrefix = "api/orderstate";
 
-    public OrderController(DaprClient daprClient, IFrontendSelfServicePosObservability observability, ILogger<OrderController> logger)
+    public OrderController(IDaprServiceInvoker serviceInvoker, IFrontendSelfServicePosObservability observability, ILogger<OrderController> logger)
     {
-        _daprClient = daprClient;
+        _serviceInvoker = serviceInvoker;
         _observability = observability;
         _logger = logger;
     }
@@ -29,7 +29,8 @@ public partial class OrderController : ControllerBase
         using var activity = _observability.StartActivity(this.GetType(), includeCallerTypeInName: true);
         try
         {
-            var order = await _daprClient.InvokeMethodAsync<OrderDto>(HttpMethod.Get, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/{id}");
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Get, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/{id}");
+            var order = await _serviceInvoker.InvokeMethodAsync<OrderDto>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return Ok(order);
         }
         catch
@@ -47,7 +48,8 @@ public partial class OrderController : ControllerBase
         activity?.SetBaggage("clientchannel", "kiosk");
         try
         {
-            var ack = await _daprClient.InvokeMethodAsync<OrderDto, OrderAcknowledgement>(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/createorder", orderDto);
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/createorder", orderDto);
+            var ack = await _serviceInvoker.InvokeMethodAsync<OrderAcknowledgement>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
 
             return ack;
         }
@@ -65,7 +67,8 @@ public partial class OrderController : ControllerBase
         using var activity = _observability.StartActivity(this.GetType(), includeCallerTypeInName: true);
         try
         {
-            var itemAck = await _daprClient.InvokeMethodAsync<OrderItemDto, ItemAcknowledgement>(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/additem/{orderid}", item);
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/additem/{orderid}", item);
+            var itemAck = await _serviceInvoker.InvokeMethodAsync<ItemAcknowledgement>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return itemAck;
         }
         catch
@@ -81,7 +84,8 @@ public partial class OrderController : ControllerBase
     {
         try
         {
-            var itemAck =  await _daprClient.InvokeMethodAsync<Guid, ItemAcknowledgement>(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/removeitem/{orderid}", itemId);
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/removeitem/{orderid}", itemId);
+            var itemAck = await _serviceInvoker.InvokeMethodAsync<ItemAcknowledgement>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return itemAck;
         }
         catch
@@ -97,7 +101,8 @@ public partial class OrderController : ControllerBase
         using var activity = _observability.StartActivity(this.GetType(), includeCallerTypeInName: true);
         try
         {
-            var orderAck = await _daprClient.InvokeMethodAsync<OrderAcknowledgement>(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/confirmorder/{orderid}");
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/confirmorder/{orderid}");
+            var orderAck = await _serviceInvoker.InvokeMethodAsync<OrderAcknowledgement>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return orderAck;
         }
         catch
@@ -114,7 +119,8 @@ public partial class OrderController : ControllerBase
         using var activity = _observability.StartActivity(this.GetType(), includeCallerTypeInName: true);
         try
         {
-            var orderAck = await _daprClient.InvokeMethodAsync< OrderAcknowledgement>(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/confirmpayment/{orderid}");
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.OrderService, $"{ApiPrefix}/confirmpayment/{orderid}");
+            var orderAck = await _serviceInvoker.InvokeMethodAsync<OrderAcknowledgement>(request, HttpContext?.RequestAborted ?? CancellationToken.None);
             return orderAck;
         }
         catch

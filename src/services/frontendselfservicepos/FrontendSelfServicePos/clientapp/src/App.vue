@@ -1,5 +1,5 @@
 <template>
-  <div id="app" class="flex h-screen" :class="{ 'dark': isDarkMode }">
+  <div id="app" class="flex h-screen" data-testid="pos-app" :class="{ 'dark': isDarkMode }">
     <router-view />
   </div>
 </template>
@@ -27,16 +27,34 @@ onUnmounted(() => {
 <style>
 html, body {
   height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
 }
 
 #app {
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: #1f2937;
+  font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  color: var(--ff-ink);
+  background: var(--ff-ground);
   height: 100%;
 }
 
-#app.dark {
-  background-color: #111827;
-  color: #f3f4f6;
+button,
+input {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 </style>

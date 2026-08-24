@@ -1,0 +1,101 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: fastfood-pr-namespace-guardrail
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["namespaces"]
+  matchConditions:
+    - name: fastfood-deployment-service-account
+      expression: >-
+        request.userInfo.username ==
+        'system:serviceaccount:cicd:deployment-sa'
+  validations:
+    - expression: >-
+        (request.operation == 'DELETE'
+          ? oldObject.metadata.name
+          : object.metadata.name).matches('^pr-[1-9][0-9]*$')
+      message: >-
+        The FastFood deployment identity may only manage namespaces named
+        pr-<positive pull-request id>.
+    - expression: >-
+        request.operation == 'DELETE' ||
+        (object.metadata.labels['fastfood.dev/environment'] == 'pull-request' &&
+          object.metadata.labels['fastfood.dev/pull-request-id'].matches('^[1-9][0-9]*$') &&
+          object.metadata.labels['fastfood.dev/redis-db'].matches('^([3-9]|1[0-5])$') &&
+          object.metadata.name ==
+            'pr-' + object.metadata.labels['fastfood.dev/pull-request-id'] &&
+          int(object.metadata.labels['fastfood.dev/redis-db']) ==
+            (int(object.metadata.labels['fastfood.dev/pull-request-id']) % 13) + 3)
+      message: >-
+        PR namespaces must carry the managed environment, pull-request id, and
+        deterministic Redis DB (3-15) labels matching their namespace name.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: fastfood-pr-namespace-guardrail
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
+spec:
+  policyName: fastfood-pr-namespace-guardrail
+  validationActions: [Deny, Audit]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: fastfood-pr-rolebinding-guardrail
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["rolebindings"]
+  matchConditions:
+    - name: fastfood-deployment-service-account
+      expression: >-
+        request.userInfo.username ==
+        'system:serviceaccount:cicd:deployment-sa'
+  validations:
+    # Namespace-local Roles remain usable by Helm charts. Kubernetes's native
+    # bind/escalate checks ensure they cannot grant rights beyond the release
+    # identity. Binding a ClusterRole is limited to the one bootstrap binding.
+    - expression: >-
+        object.roleRef.kind == 'Role' ||
+        (request.namespace.matches('^pr-[1-9][0-9]*$') &&
+          object.metadata.name == 'fastfood-release-manager' &&
+          object.roleRef.apiGroup == 'rbac.authorization.k8s.io' &&
+          object.roleRef.kind == 'ClusterRole' &&
+          object.roleRef.name == 'fastfood-release-manager' &&
+          size(object.subjects) == 1 &&
+          object.subjects[0].kind == 'ServiceAccount' &&
+          object.subjects[0].name == 'deployment-sa' &&
+          object.subjects[0].namespace == 'cicd')
+      message: >-
+        ClusterRole bindings created by the FastFood deployment identity are
+        limited to its release role in a pr-<id> namespace.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: fastfood-pr-rolebinding-guardrail
+  labels:
+    app.kubernetes.io/part-of: fastfood
+    app.kubernetes.io/component: deployment-rbac
+spec:
+  policyName: fastfood-pr-rolebinding-guardrail
+  validationActions: [Deny, Audit]

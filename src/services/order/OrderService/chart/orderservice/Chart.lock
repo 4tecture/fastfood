@@ -1,0 +1,6 @@
+dependencies:
+- name: orderserviceactors
+  repository: file://../../../OrderService.Actors/chart/orderserviceactors
+  version: 0.2.1
+digest: sha256:022c3f8e4e7ccadad721253958283a2508dadb9c16b55d49178a0d18f86bfab0
+generated: "2026-08-19T16:25:24.281549+02:00"

@@ -1,4 +1,6 @@
 using Microsoft.Playwright;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace FastFood.Ui.System.Tests.PageObjects.SelfServicePos;
 
@@ -29,19 +31,40 @@ public class OrderConfirmationPage : BasePage
     /// <returns>Order number (e.g., "O12345") or null if not found</returns>
     public async Task<string?> GetOrderNumberAsync()
     {
-        var heading = Page.GetByTestId("order-confirmation-title");
-        var text = await heading.TextContentAsync() ?? "";
-        
-        // Extract order number from "Order Confirmation (O123)"
-        var regex = new global::System.Text.RegularExpressions.Regex(@"\(O(\d+)\)");
-        var match = regex.Match(text);
-        
-        if (match.Success)
-        {
-            return $"O{match.Groups[1].Value}";
-        }
-        
-        return null;
+        var reference = await Page.GetByTestId("order-reference").TextContentAsync() ?? "";
+        var match = Regex.Match(reference, @"O\d+", RegexOptions.IgnoreCase);
+        return match.Success ? match.Value.ToUpperInvariant() : null;
+    }
+
+    public async Task<string> GetHeadingTextAsync()
+    {
+        return (await Page.GetByTestId("order-confirmation-title").TextContentAsync() ?? "").Trim();
+    }
+
+    public async Task<string> GetPayButtonTextAsync()
+    {
+        return (await Page.GetByTestId("pay-button").TextContentAsync() ?? "").Trim();
+    }
+
+    public async Task<bool> IsLoyaltyProgramVisibleAsync()
+    {
+        return await Page.GetByTestId("loyalty-program-section").IsVisibleAsync();
+    }
+
+    public async Task EnterLoyaltyNumberAsync(string loyaltyNumber)
+    {
+        await Page.GetByTestId("loyalty-input").FillAsync(loyaltyNumber);
+        await Page.GetByTestId("loyalty-discount-message").WaitForAsync(new() { State = WaitForSelectorState.Visible });
+    }
+
+    public async Task<decimal> GetSubtotalAsync()
+    {
+        return ParseCurrency(await Page.GetByTestId("order-subtotal").TextContentAsync() ?? "");
+    }
+
+    public async Task<decimal> GetLoyaltyDiscountAsync()
+    {
+        return ParseCurrency(await Page.GetByTestId("loyalty-discount").TextContentAsync() ?? "");
     }
 
     /// <summary>
@@ -82,12 +105,7 @@ public class OrderConfirmationPage : BasePage
     public async Task<decimal> GetTotalAsync()
     {
         var totalText = await Page.GetByTestId("order-total").TextContentAsync() ?? "";
-        var match = global::System.Text.RegularExpressions.Regex.Match(totalText, @"\$([0-9.]+)");
-        if (match.Success)
-        {
-            return decimal.Parse(match.Groups[1].Value);
-        }
-        return 0;
+        return ParseCurrency(totalText);
     }
 
     /// <summary>
@@ -103,6 +121,14 @@ public class OrderConfirmationPage : BasePage
         await Page.GetByTestId("payment-confirmation").WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 15000 });
         
         return new PaymentConfirmationPage(Page, BaseUrl);
+    }
+
+    private static decimal ParseCurrency(string value)
+    {
+        var match = Regex.Match(value, @"\$\s*([0-9]+(?:\.[0-9]+)?)");
+        return match.Success
+            ? decimal.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture)
+            : 0;
     }
 }
 

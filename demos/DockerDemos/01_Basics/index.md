@@ -1,50 +1,65 @@
-# Docker Basics Demo
+# Docker basics
 
-## Run the compile application inside a container
+These four labs build the same Finance service while progressively improving
+the image. Every `run.sh` is location-independent and finishes with a hardened
+smoke test against `/health/live`.
 
-- Build and create a container 
-  - Run the script [01_CompileAndCopyToContainer/run.sh](01_CompileAndCopyToContainer/run.sh) which uses the [01_CompileAndCopyToContainer/Dockerfile](01_CompileAndCopyToContainer/Dockerfile)
-- Run the container
-  ```
-  docker run -it --rm -p 8080:8080 --name democompileandcopy financeservice-demo-compileandcopy
-  ```
-- Verify that the container is running
-  - Open the URL [http://localhost:8080/healthz](http://localhost:8080/healthz)
-  - Open the URL [http://localhost:8080/api/revenuereport/byyear](http://localhost:8080/healthz)
+## 1. Publish on the host, copy into a runtime image
 
-## Compile and run the application inside the container
+```bash
+./01_CompileAndCopyToContainer/run.sh
+```
 
-- Build and create a container 
-  - Run the script [02_BuildAndRunInContainer/run.sh](02_BuildAndRunInContainer/run.sh) which uses the [02_BuildAndRunInContainer/Dockerfile](02_BuildAndRunInContainer/Dockerfile)
-- Run the container
-  ```
-  docker run -it --rm -p 8080:8080 --name demobuildandrun financeservice-demo-buildandrun
-  ```
-- Verify that the container is running
-  - Open the URL [http://localhost:8080/healthz](http://localhost:8080/healthz)
-  - Open the URL [http://localhost:8080/api/revenuereport/byyear](http://localhost:8080/healthz)
+Discuss why a host publish is easy to understand but couples the build to the
+developer workstation. Inspect the image history and the explicit non-root
+runtime user.
 
-## Use a multi stage Dockerfile
+## 2. Build inside the container
 
-- Build and create a container 
-  - Run the script [03_Multistage/run.sh](03_Multistage/run.sh) which uses the [03_Multistage/Dockerfile](03_Multistage/Dockerfile)
-- Run the container
-  ```
-  docker run -it --rm -p 8080:8080 --name demomultistage financeservice-demo-multistage
-  ```
-- Verify that the container is running
-  - Open the URL [http://localhost:8080/healthz](http://localhost:8080/healthz)
-  - Open the URL [http://localhost:8080/api/revenuereport/byyear](http://localhost:8080/healthz)
+```bash
+./02_BuildAndRunInContainer/run.sh
+```
 
-## Use docker layer image caching for faster builds
+This is intentionally a single-stage SDK image. Compare its size and attack
+surface with the next lab; it is a teaching intermediate, not a production
+image.
 
-- Build and create a container 
-  - Run the script [04_Caching/run.sh](04_Caching/run.sh) which uses the [04_Caching/Dockerfile](04_Caching/Dockerfile)
-  - Run the builds multiple times with various changes and see when the image layer cache hits.
-- Run the container
-  ```
-  docker run -it --rm -p 8080:8080 --name democaching financeservice-demo-caching
-  ```
-- Verify that the container is running
-  - Open the URL [http://localhost:8080/healthz](http://localhost:8080/healthz)
-  - Open the URL [http://localhost:8080/api/revenuereport/byyear](http://localhost:8080/healthz)
+## 3. Multi-stage build
+
+```bash
+./03_Multistage/run.sh
+```
+
+Only published output crosses into the ASP.NET runtime stage. The SDK, source,
+NuGet cache, and test tools do not ship in the final image.
+
+## 4. Restore-layer caching
+
+```bash
+./04_Caching/run.sh
+```
+
+Project metadata is copied before source, and the restore uses a BuildKit cache
+mount. Repeat the build after changing a `.cs` file, then after changing a
+project or lock file, and compare which layers invalidate.
+
+## Manual runtime inspection
+
+The scripts remove their smoke-test containers. To keep one running for
+inspection, use the same restrictions explicitly:
+
+```bash
+docker run --rm \
+  --name finance-demo \
+  --publish 127.0.0.1:8080:8080 \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --env FeatureManagement__UseInMemoryDatabase=true \
+  --env HealthChecks__CheckDapr=false \
+  financeservice-demo-caching
+```
+
+Then verify `http://127.0.0.1:8080/health/live`. Compare this with an
+unrestricted container only as an instructor-led security exercise.

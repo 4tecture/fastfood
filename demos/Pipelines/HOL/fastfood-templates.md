@@ -1,355 +1,170 @@
-# Hands-On Lab: Using Templates for Scalable CI/CD Pipelines in Azure DevOps
+# Hands-on lab: secure, reusable Azure Pipelines templates
 
-## Overview
+## Goal
 
-In this lab, you will:
-- Learn why code duplication in pipelines is a problem when managing multiple services.
-- Understand how Azure Pipelines templates help you avoid duplication and improve maintainability.
-- Explore step templates and job templates for both build and deployment.
-- See how to use these templates to create concise, maintainable CI and CD pipelines for all your services.
-- At the end, review what the final pipeline and template structure should look like, with concrete examples.
+Build one service with the repository's reusable templates, publish an
+immutable container image plus provenance metadata, package its Helm chart,
+and deploy it atomically to Kubernetes.
 
-**Goal:** By the end of this lab, you will know how to use templates to build scalable, DRY (Don't Repeat Yourself) CI/CD pipelines for many services.
+The current implementation intentionally demonstrates these controls:
 
----
+- BuildKit secrets for authenticated NuGet restores; credentials never become
+  image layers or build arguments.
+- committed NuGet lock files and `--locked-mode` restores;
+- unit-test and Cobertura results exported directly from a scratch BuildKit target;
+- a unique build-number image tag, with no mutable `latest` publication;
+- BuildKit SBOM and SLSA provenance attestations;
+- a published `image-metadata` artifact containing the registry digest;
+- blocking dependency, vulnerability, license, and IaC scans;
+- optional Cosign signing and verification of the immutable digest;
+- atomic Helm deployment with readiness checks and rollback on failure.
 
-## The Challenge: Many Services, Much Duplication
+## 1. Inspect the image-build step
 
-As your solution grows, you will have many microservices (e.g., OrderService, KitchenService, FrontendSelfServicePOS, etc.). Each service needs to be built, containerized, and deployed in a similar way. If you copy-paste the same YAML steps into every pipeline, you will:
-- Have a lot of duplicated code.
-- Make maintenance difficult (a change in one place must be copied everywhere).
-- Increase the risk of errors and inconsistencies.
+Open `pipelines/build/step-buildandpublishdockerimage.yml`. Its public inputs
+are the Dockerfile, build context, registry service connection, repository,
+build identity, optional NuGet feeds, and optional artifact-producing Docker
+targets.
 
-**Solution:** Use Azure Pipelines templates to define reusable steps and jobs.
+Each service Dockerfile publishes its runtime payload once, runs tests in a
+dependent stage, exposes evidence through `test-results`, and makes `final`
+inherit the tested graph. The release build therefore reuses the tested payload
+instead of invoking `dotnet publish` a second time.
 
----
+A service job passes one or more images through the `dockerImages` collection:
 
-## Step 1: Creating Step Templates for Build
-
-### 1.1. Step Template: Build and Publish Docker Image
-
-File: `pipelines/build/step-buildandpublishdockerimage.yml`
-
-This template encapsulates all the logic for building and publishing a Docker image, including handling build arguments, secrets, and publishing test results or artifacts.
-
-**Key Parameters:**
-- `dockerFile`: Path to the Dockerfile for the service.
-- `dockerRepositoryName`: Name of the Docker repository in your ACR.
-- `buildContext`: Path to the build context (usually the service source directory).
-- `azureContainerRegistryServiceConnection`: Name of the Azure DevOps service connection for ACR.
-- `buildId`, `buildNumber`: Build identifiers for tagging images.
-- `netCoreAspNetVersion`, `netCoreSdkVersion`: .NET versions for build args.
-- `nugetFeeds`, `publishArtifacts`: Optional, for advanced scenarios.
-
-**Example usage:**
 ```yaml
-- template: build/step-buildandpublishdockerimage.yml
+- template: build/job-buildcontainerizedservice.yml
   parameters:
-    dockerFile: '$(dockerFilePath)'
-    dockerRepositoryName: '$(dockerRepositoryName)'
-    buildContext: '$(Build.SourcesDirectory)/src'
-    azureContainerRegistryServiceConnection: '$(azureContainerRegistryServiceConnection)'
-    buildId: '$(Build.BuildId)'
-    buildNumber: '$(Build.BuildNumber)'
-    netCoreAspNetVersion: '$(netCoreAspNetVersion)'
-    netCoreSdkVersion: '$(netCoreSdkVersion)'
+    displayName: Build Order Service
+    chartPath: $(helmChartSourcePath)
+    artifactName: $(pipelineArtifactName)
+    azureContainerRegistryServiceConnection: $(azureContainerRegistryServiceConnection)
+    netCoreAspNetVersion: $(netCoreAspNetVersion)
+    netCoreSdkVersion: $(netCoreSdkVersion)
+    helmVersion: $(helmVersion)
+    artifactStagingDirectory: $(Build.ArtifactStagingDirectory)
+    buildId: $(Build.BuildId)
+    buildNumber: $(Build.BuildNumber)
+    servicePaths:
+      - $(componentPath)
+    serviceTagPrefix: $(versionTagPrefix)
+    installMonotag: false
+    updateBuildNumber: true
     nugetFeeds: []
-    publishArtifacts: []
+    dockerImages:
+      - dockerRepositoryName: $(dockerRepositoryName)
+        dockerFile: $(dockerFilePath)
+        buildContext: $(Build.SourcesDirectory)/src
+        dockerArguments: >-
+          --build-arg IMAGE_NET_ASPNET_VERSION=$(netCoreAspNetVersion)
+          --build-arg IMAGE_NET_SDK_VERSION=$(netCoreSdkVersion)
+        publishArtifacts:
+          - dockerfileTarget: test-results
+            artifactName: testresults
+            publishType: testResults
 ```
 
-**What to do:**
-- For each service, set the correct Dockerfile path, repository name, and build context.
-- Use the provided variable templates for the other parameters.
+Order Service adds a second item for the actor image. This is the important
+microservice lesson: every deployed workload must be built, scanned, and
+promoted by the pipeline—not just the HTTP entry point.
 
-### 1.2. Step Template: Build and Publish Helm Package
+## 2. Verify the supply-chain output
 
-File: `pipelines/build/step-buildhelmpackage.yml`
+Run the CI pipeline and inspect its artifacts:
 
-This template packages a Helm chart and publishes it as a pipeline artifact.
+1. `testresults` contains `.trx` files and timestamped `*.coverage.cobertura.*.xml` reports.
+2. `image-metadata/<repository>.json` contains `containerimage.digest` and
+   BuildKit attestation metadata.
+3. The Helm artifact contains the packaged chart and environment values.
+4. The registry has the build-number tag, but no newly published `latest` tag.
 
-**Key Parameters:**
-- `chartPath`: Path to the Helm chart for the service.
-- `artifactName`: Name for the published artifact.
-- `artifactStagingDirectory`: Directory to stage the artifact.
-- `helmVersion`: Helm version to use (from variables).
+For a production pipeline, download the Cosign key pair from Azure DevOps
+Secure Files and call the signing template after registry authentication:
 
-**Example usage:**
 ```yaml
-- template: build/step-buildhelmpackage.yml
+- template: security/step-signandverifyimage.yml
   parameters:
-    chartPath: '$(helmChartSourcePath)'
-    artifactName: '$(pipelineArtifactName)'
-    artifactStagingDirectory: '$(Build.ArtifactStagingDirectory)'
-    helmVersion: '$(helmVersion)'
+    imageReference: $(azureContainerRegistry)/$(dockerRepositoryName):$(Build.BuildNumber)
+    privateKeySecureFile: fastfood-cosign.key
+    publicKeySecureFile: fastfood-cosign.pub
 ```
 
-**What to do:**
-- Set the correct chart path and artifact name for each service.
-- Use the variable templates for the other parameters.
+Store `cosignPassword` as a secret variable. Production clusters should verify
+the same public key at admission time. Keyless signing with workload identity
+is preferable where the Azure DevOps organization and transparency-log policy
+are configured for it.
 
----
+## 3. Inspect the security job
 
-## Step 2: Creating a Job Template for Build
+Open `pipelines/security/job-securityscan.yml` and identify:
 
-### 2.1. Job Template: Build and Publish Containerized Service
+- CodeQL initialization/build/analyze;
+- dependency scanning after a locked restore;
+- Trivy filesystem, image, license, and Helm/Kubernetes configuration scans;
+- Trivy v2's explicit `failOnSeverityThreshold: HIGH` policy;
+- `ignoreUnfixed: true`, which prevents vulnerabilities without an available
+  fix from blocking a training pipeline;
+- blocking scanner/runtime errors and the absence of `continueOnError`
+  bypasses.
 
-File: `pipelines/build/job-buildcontainerizedservice.yml`
+The task evaluates every configured severity for vulnerabilities with an
+available fix, but only High and Critical findings fail the default CI policy.
+Fixable Medium and Low findings remain visible in the generated reports. This
+keeps the demo dependable while preserving a meaningful enterprise security
+gate; use a separate non-gating inventory scan when complete unfixed-
+vulnerability visibility is required.
 
-This job template brings together the step templates above and defines the full build job for a service.
+Exercise: introduce a `:latest` image in a chart values file and confirm the
+configuration scan or review gate catches it. Revert it before continuing.
 
-**Key Parameters:**
-- `dockerFile`, `dockerRepositoryName`, `chartPath`, `artifactName`, `azureContainerRegistryServiceConnection`, `netCoreAspNetVersion`, `netCoreSdkVersion`, `helmVersion`, `artifactStagingDirectory`, `buildContext`, `buildId`, `buildNumber`, `servicePaths`, `serviceTagPrefix`, `installMonotag`, `updateBuildNumber`, `nugetFeeds`, `publishArtifacts`, `dockerArguments`, `pool`, `container`.
+## 4. Deploy with the job template
 
-**Example usage in a CI pipeline:**
-```yaml
-jobs:
-  - template: build/job-buildcontainerizedservice.yml
-    parameters:
-      displayName: "Build and Publish Order Service"
-      dockerFile: '$(dockerFilePath)'
-      dockerRepositoryName: '$(dockerRepositoryName)'
-      chartPath: '$(helmChartSourcePath)'
-      artifactName: '$(pipelineArtifactName)'
-      azureContainerRegistryServiceConnection: '$(azureContainerRegistryServiceConnection)'
-      netCoreAspNetVersion: '$(netCoreAspNetVersion)'
-      netCoreSdkVersion: '$(netCoreSdkVersion)'
-      helmVersion: '$(helmVersion)'
-      artifactStagingDirectory: '$(Build.ArtifactStagingDirectory)'
-      buildContext: '$(Build.SourcesDirectory)/src'
-      buildId: '$(Build.BuildId)'
-      buildNumber: '$(Build.BuildNumber)'
-      servicePaths:
-        - '$(componentPath)'
-      serviceTagPrefix: '$(versionTagPrefix)'
-      installMonotag: false
-      updateBuildNumber: true
-      nugetFeeds: []
-      publishArtifacts: []
-      dockerArguments: '--build-arg IMAGE_NET_ASPNET_VERSION=$(netCoreAspNetVersion) --build-arg IMAGE_NET_SDK_VERSION=$(netCoreSdkVersion)'
-      pool:
-        vmImage: 'ubuntu-latest'
-      container: ''
-```
-
-**What to do:**
-- For each service, use the correct variable templates for all parameters.
-- Adjust `servicePaths`, `serviceTagPrefix`, and `dockerArguments` as needed for your service.
-
----
-
-## Step 3: Building CI Pipelines Using the Job Template
-
-Now, each CI pipeline for a service (e.g., `ci-orderservice.yml`, `ci-kitchenservice.yml`, etc.) can be very concise and maintainable. Here is a complete example for the OrderService:
+The deployment job downloads the chart artifact and invokes
+`deploy/step-deployhelmchart.yml`:
 
 ```yaml
-name: ci-orderservice
-
-trigger:
-  branches:
-    include:
-      - main
-      - release/*
-  paths:
-    include:
-      - src/services/orderservice/**
-
-variables:
-  - template: config/var-pool.yml
-  - template: config/var-commonvariables.yml
-  - template: config/var-orderservice.yml
-
-jobs:
-  - template: build/job-buildcontainerizedservice.yml
-    parameters:
-      displayName: "Build and Publish Order Service"
-      dockerFile: '$(dockerFilePath)'
-      dockerRepositoryName: '$(dockerRepositoryName)'
-      chartPath: '$(helmChartSourcePath)'
-      artifactName: '$(pipelineArtifactName)'
-      azureContainerRegistryServiceConnection: '$(azureContainerRegistryServiceConnection)'
-      netCoreAspNetVersion: '$(netCoreAspNetVersion)'
-      netCoreSdkVersion: '$(netCoreSdkVersion)'
-      helmVersion: '$(helmVersion)'
-      artifactStagingDirectory: '$(Build.ArtifactStagingDirectory)'
-      buildContext: '$(Build.SourcesDirectory)/src'
-      buildId: '$(Build.BuildId)'
-      buildNumber: '$(Build.BuildNumber)'
-      servicePaths:
-        - '$(componentPath)'
-      serviceTagPrefix: '$(versionTagPrefix)'
-      installMonotag: false
-      updateBuildNumber: true
-      nugetFeeds: []
-      publishArtifacts: []
-      dockerArguments: '--build-arg IMAGE_NET_ASPNET_VERSION=$(netCoreAspNetVersion) --build-arg IMAGE_NET_SDK_VERSION=$(netCoreSdkVersion)'
-      pool:
-        vmImage: 'ubuntu-latest'
-      container: ''
-```
-
-**What to do:**
-- Repeat this pattern for each service, changing only the variable template and trigger path.
-
----
-
-## Step 4: Creating Step and Job Templates for Deployment
-
-### 4.1. Step Template: Deploy Helm Chart
-
-File: `pipelines/deploy/step-deployhelmchart.yml`
-
-This template encapsulates the logic for deploying a Helm chart to Kubernetes, including installing Helm/Kubectl, creating namespaces, and handling secrets.
-
-**Key Parameters:**
-- `kubernetesDeploymentServiceConnection`: Name of the Kubernetes service connection.
-- `clusterNamespace`: Namespace to deploy to.
-- `chartPath`: Path to the Helm chart package.
-- `releaseName`: Name of the Helm release.
-- `releaseValuesFile`: Path to the values file.
-- `tokenizerSecrets`: Optional, for secret replacement.
-- `installHelm`, `installKubectl`, `helmVersion`, `kubectlVersion`, `createNamespace`, `deployOnlyIfNotExist`: Advanced options.
-
-**Example usage:**
-```yaml
-- template: deploy/step-deployhelmchart.yml
+- template: deploy/job-deployservicetok8s.yml
   parameters:
-    kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
-    clusterNamespace: '$(namespace)'
-    chartPath: '$(helmChartArtifactDownloadPath)'
-    releaseName: '$(pipelineArtifactName)'
-    releasevaluesFile: '$(helmChartArtifactValuesFileDownloadPath)'
+    environment: fastfood-staging
+    namespace: staging
+    valuesFile: $(helmChartArtifactValuesFileDownloadPath)
+    artifactName: $(pipelineArtifactName)
+    chartPackage: $(helmChartArtifactDownloadPath)
+    kubernetesDeploymentServiceConnection: $(kubernetesDeploymentServiceConnection)
+    updateBuildNumber: true
     tokenizerSecrets: []
-    installHelm: true
-    installKubectl: true
-    helmVersion: '$(helmVersion)'
-    kubectlVersion: 'latest'
-    createNamespace: false
-    deployOnlyIfNotExist: false
+    pool:
+      vmImage: ubuntu-24.04
 ```
 
-**What to do:**
-- Use the correct variable templates for each parameter.
-- Adjust advanced options only if needed.
+The Helm step selects the equivalent rollback flag for Helm 3 or 4 and combines
+it with `--wait`, `--wait-for-jobs`, `--cleanup-on-fail`, a bounded timeout, and
+history retention. A failed readiness probe or migration Job therefore rolls
+the release back instead of leaving a half-deployed workload.
 
-### 4.2. Job Template: Deploy Service to Kubernetes
+## 5. Promote by digest
 
-File: `pipelines/deploy/job-deployservicetok8s.yml`
+Before enabling production admission enforcement:
 
-This job template defines a deployment job that uses the step template above.
+1. Read the digest from the CI `image-metadata` artifact.
+2. Set the chart's `image.digest` value and retain the tag only as human-readable
+   context.
+3. Verify the Cosign signature.
+4. Apply `infrastructure/policies/require-image-digests.yaml`.
+5. Label the production namespace with
+   `fastfood.dev/require-image-digests=true`.
 
-**Key Parameters:**
-- `environment`, `namespace`, `valuesFile`, `artifactName`, `chartPackage`, `kubernetesDeploymentServiceConnection`, `updateBuildNumber`, `sparseCheckoutDirectories`, `tokenizerSecrets`, `displayName`, `pool`, `container`.
+This separates *building* from *promotion*: staging and production consume the
+same verified image bytes even when tags move or registries are replicated.
 
-**Example usage in a CD pipeline:**
-```yaml
-jobs:
-  - template: deploy/job-deployservicetok8s.yml
-    parameters:
-      environment: 'fastfood-staging'
-      namespace: 'staging'
-      valuesFile: '$(helmChartArtifactValuesFileDownloadPath)'
-      artifactName: '$(pipelineArtifactName)'
-      chartPackage: '$(helmChartArtifactDownloadPath)'
-      kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
-      updateBuildNumber: true
-      
-      tokenizerSecrets: []
-      displayName: 'Deploy Service to Kubernetes'
-      pool:
-        vmImage: 'ubuntu-latest'
-      container: ''
-```
+## Completion checks
 
-**What to do:**
-- Use the correct variable templates for each parameter.
-- Set `updateBuildNumber` and `sparseCheckoutDirectories` as needed for your environment.
-
----
-
-## Step 5: Building CD Pipelines Using the Job Template
-
-Each CD pipeline for a service (e.g., `cd-orderservice.yml`, `cd-kitchenservice.yml`, etc.) can now be concise and maintainable. Here is a complete example for the OrderService:
-
-```yaml
-name: cd-orderservice
-
-trigger: none
-
-resources:
-  pipelines:
-    - pipeline: CIBuild
-      source: ci-orderservice
-      trigger:
-        branches:
-          include:
-            - main
-            - release/*
-
-variables:
-  - template: config/var-pool.yml
-  - template: config/var-commonvariables.yml
-  - template: config/var-commonvariables-release.yml
-  - template: config/var-orderservice.yml
-
-stages:
-  - stage: Staging
-    jobs:
-      - template: deploy/job-deployservicetok8s.yml
-        parameters:
-          environment: 'fastfood-staging'
-          namespace: 'staging'
-          valuesFile: '$(helmChartArtifactValuesFileDownloadPath)'
-          artifactName: '$(pipelineArtifactName)'
-          chartPackage: '$(helmChartArtifactDownloadPath)'
-          kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
-          updateBuildNumber: true
-          
-          tokenizerSecrets: []
-          displayName: 'Deploy Service to Kubernetes'
-          pool:
-            vmImage: 'ubuntu-latest'
-          container: ''
-```
-
-**What to do:**
-- Repeat this pattern for each service, changing only the variable template and resource pipeline name.
-
----
-
-## Step 6: Summary and Final Structure
-
-By using step and job templates, you:
-- Avoid code duplication across pipelines for all your services.
-- Make it easy to update build or deployment logic in one place.
-- Ensure consistency and reduce errors.
-
-**Your final structure will look like:**
-
-```
-pipelines/
-  build/
-    step-buildandpublishdockerimage.yml
-    step-buildhelmpackage.yml
-    job-buildcontainerizedservice.yml
-  deploy/
-    step-deployhelmchart.yml
-    job-deployservicetok8s.yml
-  ci-orderservice.yml
-  ci-kitchenservice.yml
-  ci-frontendselfservicepos.yml
-  ci-frontendkitchenmonitor.yml
-  ci-frontendcustomerorderstatus.yml
-  ci-financeservice.yml
-  cd-orderservice.yml
-  cd-kitchenservice.yml
-  cd-frontendselfservicepos.yml
-  cd-frontendkitchenmonitor.yml
-  cd-frontendcustomerorderstatus.yml
-  cd-financeservice.yml
-```
-
-Each CI and CD pipeline is short and readable, and all the logic is centralized in templates.
-
----
-
-If you need help with templates or YAML syntax, refer to the official Azure Pipelines documentation or ask your instructor.
+- CI fails when tests, locked restore, scanner/runtime errors, or fixable High
+  or Critical security findings violate the policy.
+- The final image runs as non-root and exposes the live/ready probes.
+- The digest recorded by CI matches the digest deployed by Helm.
+- Deployment rollback is demonstrated by temporarily using an invalid
+  readiness path.
+- No registry password, NuGet credential, Kubernetes token, database password,
+  or signing private key is committed or printed in logs.

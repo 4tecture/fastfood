@@ -2,8 +2,8 @@
 # These arguments allow us to easily change the base images if needed.
 ARG IMAGE_NET_ASPNET=mcr.microsoft.com/dotnet/aspnet
 ARG IMAGE_NET_SDK=mcr.microsoft.com/dotnet/sdk
-ARG IMAGE_NET_ASPNET_VERSION=10.0.2
-ARG IMAGE_NET_SDK_VERSION=10.0.102
+ARG IMAGE_NET_ASPNET_VERSION=10.0.11
+ARG IMAGE_NET_SDK_VERSION=10.0.400
 
 # Allow a suffix to be appended to the final ASP.NET image for development customization.
 # This can be overridden at build time with --build-arg ASPNET_SUFFIX=
@@ -14,11 +14,11 @@ ARG ASPNET_SUFFIX=-noble-chiseled-extra
 # ---------------------------------------------------------------------
 
 # Use the official ASP.NET runtime image with the specified version.
-FROM ${IMAGE_NET_ASPNET}:${IMAGE_NET_ASPNET_VERSION} AS base
+FROM ${IMAGE_NET_ASPNET}:${IMAGE_NET_ASPNET_VERSION}${ASPNET_SUFFIX} AS base
 # Set the working directory in the container where the app will run.
 WORKDIR /app
 EXPOSE 8080
-EXPOSE 8081
+USER $APP_UID
 
 # ---------------------------------------------------------------------
 # Stage 2: Build the application
@@ -28,21 +28,23 @@ EXPOSE 8081
 FROM ${IMAGE_NET_SDK}:${IMAGE_NET_SDK_VERSION} AS build
 # Set the working directory where the source code will be copied.
 WORKDIR /src
+COPY ["Directory.Build.props", "."]
 
 # Copy project files for different parts of the solution to enable caching of the restore step.
-COPY ["common/FastFood.Common/FastFood.Common.csproj", "common/FastFood.Common/"]
-COPY ["common/FastFood.Observability.Common/FastFood.Observability.Common.csproj", "common/FastFood.Observability.Common/"]
-COPY ["common/FastFood.FeatureManagement.Common/FastFood.FeatureManagement.Common.csproj", "common/FastFood.FeatureManagement.Common/"]
-COPY ["services/order/OrderService.Actors/OrderService.Actors.csproj", "services/order/OrderService.Actors/"]
-COPY ["services/order/OrderService.Models/OrderService.Models.csproj", "services/order/OrderService.Models/"]
-COPY ["services/finance/FinanceService.Common/FinanceService.Common.csproj", "services/finance/FinanceService.Common/"]
-COPY ["services/order/OrderService.Common/OrderService.Common.csproj", "services/order/OrderService.Common/"]
-COPY ["services/order/OrderService.Actors.Unit.Tests/OrderService.Actors.Unit.Tests.csproj", "services/order/OrderService.Actors.Unit.Tests/"]
+COPY ["common/FastFood.Common/FastFood.Common.csproj", "common/FastFood.Common/packages.lock.json", "common/FastFood.Common/"]
+COPY ["common/FastFood.Observability.Common/FastFood.Observability.Common.csproj", "common/FastFood.Observability.Common/packages.lock.json", "common/FastFood.Observability.Common/"]
+COPY ["common/FastFood.FeatureManagement.Common/FastFood.FeatureManagement.Common.csproj", "common/FastFood.FeatureManagement.Common/packages.lock.json", "common/FastFood.FeatureManagement.Common/"]
+COPY ["services/order/OrderService.Actors/OrderService.Actors.csproj", "services/order/OrderService.Actors/packages.lock.json", "services/order/OrderService.Actors/"]
+COPY ["services/order/OrderService.Models/OrderService.Models.csproj", "services/order/OrderService.Models/packages.lock.json", "services/order/OrderService.Models/"]
+COPY ["services/finance/FinanceService.Common/FinanceService.Common.csproj", "services/finance/FinanceService.Common/packages.lock.json", "services/finance/FinanceService.Common/"]
+COPY ["services/order/OrderService.Common/OrderService.Common.csproj", "services/order/OrderService.Common/packages.lock.json", "services/order/OrderService.Common/"]
+COPY ["services/order/OrderService.Actors.Unit.Tests/OrderService.Actors.Unit.Tests.csproj", "services/order/OrderService.Actors.Unit.Tests/packages.lock.json", "services/order/OrderService.Actors.Unit.Tests/"]
+ENV RestoreLockedMode=true
 
 # Run dotnet restore for each project.
 # If a secret NuGet configuration file is provided, it will be used during restore.
 RUN --mount=type=secret,id=nugetconfig,required=false \
-    sh -c 'if [ -f /run/secrets/nugetconfig ]; then \
+    sh -c 'set -eu; if [ -f /run/secrets/nugetconfig ]; then \
               dotnet restore --configfile /run/secrets/nugetconfig "services/order/OrderService.Actors/OrderService.Actors.csproj"; \
               dotnet restore --configfile /run/secrets/nugetconfig "services/order/OrderService.Actors.Unit.Tests/OrderService.Actors.Unit.Tests.csproj"; \
           else \
@@ -53,9 +55,9 @@ RUN --mount=type=secret,id=nugetconfig,required=false \
 # Copy the remainder of the source code to the container.
 COPY . .
 
-# Build the OrderService.Actors project in Release mode and output the build results to /app/build.
-# The --no-restore flag is used because restore was already performed.
-RUN dotnet build "services/order/OrderService.Actors/OrderService.Actors.csproj" -c Release -o /app/build --no-restore
+# Publish the runtime payload once. The later publish stage inherits it through
+# the test stage, so the final image is test-gated without compiling it again.
+RUN dotnet publish "services/order/OrderService.Actors/OrderService.Actors.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
 RUN dotnet build "services/order/OrderService.Actors.Unit.Tests/OrderService.Actors.Unit.Tests.csproj" -c Release --no-restore
 
 # ---------------------------------------------------------------------
@@ -63,27 +65,22 @@ RUN dotnet build "services/order/OrderService.Actors.Unit.Tests/OrderService.Act
 # ---------------------------------------------------------------------
 
 FROM build AS test
-# Accept a build ID as an argument to label the test results; defaults to "localbuild".
-ARG BUILDID=localbuild
-# Label the container with the build ID for test results traceability.
-LABEL testresults=${BUILDID}
 
 # Execute tests for OrderService.Actors.Unit.Tests with code coverage.
-RUN dotnet test --no-build -c Release --results-directory /testresults \
-    --logger "trx;LogFileName=test_results_orderserviceactors.trx" \
-    /p:CollectCoverage=true \
-    /p:CoverletOutputFormat=json%2cCobertura \
-    /p:CoverletOutput=/testresults/coverage/ \
-    -p:MergeWith=/testresults/coverage/coverage.json services/order/OrderService.Actors.Unit.Tests/OrderService.Actors.Unit.Tests.csproj
+RUN dotnet test --project services/order/OrderService.Actors.Unit.Tests/OrderService.Actors.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
+    --report-trx --report-trx-filename=test_results_orderserviceactors.trx \
+    --coverlet --coverlet-file-prefix=orderserviceactors --coverlet-output-format=cobertura
+
+# Export only the test evidence, rather than the complete SDK filesystem.
+FROM scratch AS test-results
+COPY --from=test /testresults /
 
 # ---------------------------------------------------------------------
 # Stage 4: Publish the application
 # ---------------------------------------------------------------------
 
-FROM build AS publish
-# Publish the OrderService.Actors project in Release mode to the /app/publish directory.
-# The /p:UseAppHost=false flag prevents the generation of platform-specific executables.
-RUN dotnet publish "services/order/OrderService.Actors/OrderService.Actors.csproj" -c Release -o /app/publish /p:UseAppHost=false
+FROM test AS publish
+# The tested stage already contains the published runtime payload.
 
 # Modify file permissions: directories get 755 and files get 644 for better security and accessibility.
 RUN find /app/publish -type d -exec chmod 755 {} \; && \
@@ -94,7 +91,7 @@ RUN find /app/publish -type d -exec chmod 755 {} \; && \
 # ---------------------------------------------------------------------
 
 # Use the ASP.NET image with optional suffix applied.
-FROM ${IMAGE_NET_ASPNET}:${IMAGE_NET_ASPNET_VERSION}${ASPNET_SUFFIX} AS final
+FROM base AS final
 # Set the working directory inside the container where the app will run.
 WORKDIR /app
 

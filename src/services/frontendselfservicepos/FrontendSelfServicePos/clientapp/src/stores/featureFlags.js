@@ -6,14 +6,14 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
     const flags = ref({
         LoyaltyProgram: false,
         NewCheckoutExperience: false,
-        DarkMode: true
+        DarkMode: false
     });
 
     const loading = ref(false);
     const error = ref(null);
     const currentUserId = ref(null);
     let pollingInterval = null;
-    const POLLING_INTERVAL_MS = 10000; // 10 seconds - matches Azure App Config cache refresh
+    const POLLING_INTERVAL_MS = 10000; // Backend refresh interval is 5 seconds.
 
     // Generate a new user ID for each order session (kiosk mode)
     // This ensures percentage rollouts work per-order, not per-browser
@@ -49,7 +49,7 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
         // Initial fetch
         fetchFlags();
         
-        // Set up polling - fetch flags every 30 seconds to detect runtime changes
+        // Poll every 10 seconds; the backend refreshes Azure App Configuration every 5 seconds.
         pollingInterval = setInterval(() => {
             fetchFlags();
         }, POLLING_INTERVAL_MS);

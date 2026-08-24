@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FastFood.Common.Settings;
+using FastFood.Common.Health;
 using FastFood.Observability.Common;
 using FinanceService.Observability;
 using FinanceService.Services;
@@ -9,14 +10,10 @@ using FinanceService.Storage.Extensions;
 using FinanceService.Storage.Storages;
 using FinanceService.Storage.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.FeatureManagement;
 
 AppContext.SetSwitch("Microsoft.AspNetCore.Mvc.ApiExplorer.IsEnhancedModelMetadataSupported", true);
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Feature Management
-builder.Services.AddFeatureManagement();
 
 // Observability
 var observabilityOptions = builder.Configuration.GetObservabilityOptions();
@@ -31,11 +28,9 @@ builder.Services.AddDaprClient(builder => builder
     .UseJsonSerializationOptions(new JsonSerializerOptions().ConfigureJsonSerializerOptions()));
 
 // Database Configuration with Feature Flag
-var serviceProvider = builder.Services.BuildServiceProvider();
-var featureManager = serviceProvider.GetRequiredService<IFeatureManager>();
-var UseInMemoryDatabase = await featureManager.IsEnabledAsync("UseInMemoryDatabase");
+var useInMemoryDatabase = builder.Configuration.GetValue<bool>("FeatureManagement:UseInMemoryDatabase");
 
-if (UseInMemoryDatabase)
+if (useInMemoryDatabase)
 {
     builder.Services.AddDbContext<FinanceStorage>(options =>
         options.UseInMemoryDatabase("FinanceInMemoryDb"));
@@ -64,13 +59,15 @@ builder.Services.AddControllers()
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddHealthChecks();
+builder.Services.AddFastFoodHealthChecks(builder.Configuration);
 
 var app = builder.Build();
 
-// Ensure database is created and optionally seeded (for demo purposes)
-using (var scope = app.Services.CreateScope())
+// Schema deployment belongs to the migration Job in production. Local Compose can opt in.
+var applySchemaOnStartup = builder.Configuration.GetValue<bool>("Database:ApplySchemaOnStartup");
+if (useInMemoryDatabase || applySchemaOnStartup)
 {
+    await using var scope = app.Services.CreateAsyncScope();
     var context = scope.ServiceProvider.GetRequiredService<FinanceStorage>();
     await context.Database.EnsureCreatedAsync();
     
@@ -95,6 +92,6 @@ app.UseObservability(observabilityOptions);
 app.MapControllers();
 app.MapSubscribeHandler();
 
-app.MapHealthChecks("/healthz");
+app.MapFastFoodHealthChecks();
 
 app.Run();

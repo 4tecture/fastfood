@@ -80,7 +80,7 @@ public class KitchenMonitorPage : BasePage
             // Get the product name from data attribute
             var productName = await itemLocator.GetAttributeAsync("data-product-name") ?? "";
             productName = productName.Trim();
-            
+
             // Check if item is finished
             var finishedLabel = itemId != null ? itemLocator.Page.GetByTestId($"item-finished-{itemId}") : null;
             var isFinished = finishedLabel != null && await finishedLabel.CountAsync() > 0;
@@ -91,7 +91,7 @@ public class KitchenMonitorPage : BasePage
                 {
                     ItemId = itemId,
                     ProductName = productName,
-                    Quantity = 1, // Kitchen doesn't display quantity in the current UI
+                    Quantity = 1, // Kitchen doesn't display quantity in the starter UI
                     IsFinished = isFinished
                 });
             }

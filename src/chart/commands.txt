@@ -1,3 +1,5 @@
-helm dependency update
-helm dependency build
-helm upgrade --install fastfood -f ..\values.release.yaml --namespace fastfood .
+helm dependency update ./fastfood
+helm lint ./fastfood --with-subcharts
+helm template fastfood ./fastfood --namespace fastfood --values ./values.release.yaml
+helm upgrade --install fastfood ./fastfood --namespace fastfood --create-namespace \
+  --values ./values.release.yaml --atomic --wait --timeout 10m

@@ -33,7 +33,7 @@ public class OrderDtoTests
             Customer = customer,
             CustomerComments = "Test Comment"
         };
-        order.Items.Add(orderItem);
+        order.Items!.Add(orderItem);
 
         // Assert
         Assert.Equal(orderId, order.Id);

@@ -1,5 +1,6 @@
 ﻿using Dapr.Client;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using FastFood.FeatureManagement.Common.Constants;
 using FastFood.FeatureManagement.Common.Services;
 using FinanceService.Observability;
@@ -11,6 +12,7 @@ namespace OrderPlacement.Services;
 public partial class OrderProcessingServiceState : IOrderProcessingServiceState
 {
     private readonly DaprClient _daprClient;
+    private readonly IDaprServiceInvoker _serviceInvoker;
     private readonly IOrderEventRouter _orderEventRouter;
     private readonly IOrderServiceObservability _observability;
     private readonly ILogger<OrderProcessingServiceState> _logger;
@@ -18,7 +20,8 @@ public partial class OrderProcessingServiceState : IOrderProcessingServiceState
     private readonly IObservableFeatureManager _featureManager;
 
     public OrderProcessingServiceState(
-        DaprClient daprClient, 
+        DaprClient daprClient,
+        IDaprServiceInvoker serviceInvoker,
         IOrderEventRouter orderEventRouter, 
         IOrderServiceObservability observability, 
         ILogger<OrderProcessingServiceState> logger,
@@ -26,6 +29,7 @@ public partial class OrderProcessingServiceState : IOrderProcessingServiceState
         IObservableFeatureManager featureManager)
     {
         _daprClient = daprClient;
+        _serviceInvoker = serviceInvoker;
         _orderEventRouter = orderEventRouter;
         _observability = observability;
         _logger = logger;
@@ -205,7 +209,8 @@ public partial class OrderProcessingServiceState : IOrderProcessingServiceState
             }
             
             // Send to FinanceService with pricing breakdown
-            await _daprClient.InvokeMethodAsync(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/newOrder", order.ToFinanceDto(pricing.ServiceFee, discount));
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/newOrder", order.ToFinanceDto(pricing.ServiceFee, discount));
+            await _serviceInvoker.InvokeMethodAsync<object>(request);
         }
         else
         {
@@ -283,7 +288,8 @@ public partial class OrderProcessingServiceState : IOrderProcessingServiceState
             
             await _daprClient.PublishEventAsync(FastFoodConstants.PubSubName, FastFoodConstants.EventNames.OrderClosed, order.ToDto());
             
-            await _daprClient.InvokeMethodAsync(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/closeOrder", order.Id);
+            using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/closeOrder", order.Id);
+            await _serviceInvoker.InvokeMethodAsync<object>(request);
 
             await _orderEventRouter.RemoveRoutingTargetForOrder(orderid);
         }

@@ -16,4 +16,6 @@ For this demo, we will use Trivy which can be installed locally or be used as a 
 
 Alternatively, you can run it with Docker Scout
 
+- Sign in to Docker Desktop or run `docker login`. Docker Scout requires an
+  authenticated Docker account, including when scanning a local image.
 - Run the script [run-dockerscout.sh](run-dockerscout.sh) which scans the image produced in the prior step for CVEs.

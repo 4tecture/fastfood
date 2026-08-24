@@ -96,7 +96,7 @@ public class KitchenEventHandlerControllerTests
     }
 
     [Fact]
-    public async Task NewOrder_NullItems_ReturnsInternalServerError()
+    public async Task NewOrder_NullItems_ReturnsBadRequest()
     {
         // Arrange
         var orderDto = new OrderDto
@@ -110,7 +110,7 @@ public class KitchenEventHandlerControllerTests
         var result = await _controller.NewOrder(orderDto, _daprClientMock.Object);
 
         // Assert
-        var statusResult = Assert.IsType<StatusCodeResult>(result);
-        Assert.Equal(500, statusResult.StatusCode);
+        var statusResult = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(400, statusResult.StatusCode);
     }
 }

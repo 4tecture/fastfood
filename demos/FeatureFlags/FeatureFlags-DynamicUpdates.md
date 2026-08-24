@@ -19,7 +19,7 @@
 │ Azure App Config    │ Feature flags stored centrally
 └──────────┬──────────┘
            │
-           │ 30s cache refresh
+           │ 5s cache refresh
            ↓
 ┌─────────────────────┐
 │ Backend             │
@@ -34,7 +34,7 @@
            ↓
 ┌─────────────────────┐
 │ Frontend            │
-│ Vue.js SPA          │ Polls every 30s, reactive state updates
+│ Vue.js SPA          │ Polls every 10s, reactive state updates
 │ (featureFlags.js)   │
 └─────────────────────┘
 ```
@@ -44,7 +44,7 @@
 #### 1. Frontend Store (`featureFlags.js`)
 
 **Key Features**:
-- **Polling Interval**: 30 seconds (matches Azure App Config cache)
+- **Polling Interval**: 10 seconds; Azure App Configuration refreshes every 5 seconds
 - **Lifecycle Management**: Starts on mount, stops on unmount
 - **Reactive State**: Vue automatically re-renders when flags change
 - **User Context**: Optional userId parameter for targeting
@@ -52,7 +52,7 @@
 ```javascript
 export const useFeatureFlagsStore = defineStore('featureFlags', () => {
     const flags = ref({ LoyaltyProgram: false, DarkMode: false, ... });
-    const POLLING_INTERVAL_MS = 30000; // 30 seconds
+    const POLLING_INTERVAL_MS = 10000; // 10 seconds
     
     async function fetchFlags(userContext = null) {
         const params = userContext ? { userId: userContext.userId } : {};
@@ -142,12 +142,12 @@ app.UseAzureAppConfiguration(); // Middleware to refresh cache
 **Timeline**:
 ```
 T+0s:  Admin enables "DarkMode" in Azure Portal
-T+30s: Backend cache refreshes, sees DarkMode=true
+T+5s:  Backend cache refreshes, sees DarkMode=true
 T+45s: Frontend polls, receives DarkMode=true
 T+45s: Vue reactive system updates, dark theme applies
 ```
 
-**Max latency**: 60 seconds (30s backend cache + 30s frontend poll)
+**Expected maximum latency**: about 15 seconds (5s backend refresh + 10s frontend poll)
 
 **No page refresh required**: Vue's reactivity automatically updates all components watching the flag state.
 
@@ -172,7 +172,7 @@ T+45s: Vue reactive system updates, dark theme applies
 **How it works**:
 1. Backend evaluates percentage filter using consistent hashing
 2. Same request context → same result (deterministic)
-3. Frontend polls every 30s, gets **same** boolean value
+3. Frontend polls every 10s, gets **same** boolean value
 4. Result: ~25% of users see feature, 75% don't
 
 **Consistency**: Each user gets consistent experience because backend uses deterministic hashing based on feature name (or userId if provided).
@@ -266,7 +266,7 @@ See `/src/services/order/OrderService/appsettings.FeatureFlagExamples.json` for 
    - Azure Portal: Enable "DarkMode" feature flag
    - OR Local: Edit appsettings.json, set `"DarkMode": true`
 4. **Wait**: 
-   - Azure: Wait 30s (backend cache) + 30s (frontend poll) = ~60s max
+   - Azure: allow up to about 15s for backend refresh and frontend polling
    - Local: Restart service (no hot reload for appsettings.json)
 5. **Observe**: Dark theme appears **without** browser refresh
 
@@ -283,7 +283,7 @@ describe('Feature Flag Polling', () => {
     // Server changes flag
     mockServer.setFlag('DarkMode', true);
     
-    // Trigger manual poll (or wait 30s)
+    // Trigger manual poll (or wait 10s)
     await store.fetchFlags();
     
     // Verify update
@@ -297,7 +297,7 @@ describe('Feature Flag Polling', () => {
 ### Network Traffic
 
 **Per frontend instance**:
-- Request: `GET /api/FeatureFlags` every 30 seconds
+- Request: `GET /api/FeatureFlags` every 10 seconds
 - Payload: ~200 bytes JSON (6 flags)
 - Annual cost: ~1 GB/year per user (negligible)
 
@@ -309,7 +309,7 @@ describe('Feature Flag Polling', () => {
 ### Browser Resource Usage
 
 **Memory**: ~1 KB for flag state (negligible)
-**CPU**: Minimal - one setTimeout per 30s
+**CPU**: Minimal - one timer per 10s
 
 ### Server Load
 
@@ -360,7 +360,7 @@ rate(azure_app_config_cache_refresh_total[5m])
 - ✅ Simple implementation (~50 lines of code)
 - ✅ No persistent connections (works with load balancers)
 - ✅ 30-60s latency acceptable for feature flags (not chat/stock tickers)
-- ✅ Aligns with Azure App Config cache refresh (30s)
+- ✅ Keeps frontend polling slower than the 5s backend refresh interval
 - ✅ No server-side state management needed
 
 ## Future Enhancements

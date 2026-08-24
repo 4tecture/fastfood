@@ -1,6 +1,7 @@
 ﻿using Dapr.Client;
 using Dapr.Workflow;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using OrderPlacement.Storages;
 using OrderPlacement.Workflows.Events;
 using OrderService.Models.Entities;
@@ -13,12 +14,14 @@ public partial class OrderServedActivity : WorkflowActivity<OrderServedEvent, Or
     private readonly ILogger<OrderServedActivity> _logger;
     private readonly IOrderStorage _orderStorage;
     private readonly DaprClient _daprClient;
+    private readonly IDaprServiceInvoker _serviceInvoker;
 
-    public OrderServedActivity(IOrderStorage orderStorage, DaprClient daprClient, ILogger<OrderServedActivity> logger)
+    public OrderServedActivity(IOrderStorage orderStorage, DaprClient daprClient, IDaprServiceInvoker serviceInvoker, ILogger<OrderServedActivity> logger)
     {
         _orderStorage = orderStorage;
         _logger = logger;
         _daprClient = daprClient;
+        _serviceInvoker = serviceInvoker;
     }
 
     public override async Task<Order> RunAsync(WorkflowActivityContext context, OrderServedEvent input)
@@ -31,7 +34,8 @@ public partial class OrderServedActivity : WorkflowActivity<OrderServedEvent, Or
                 order.State = OrderState.Closed;
                 await _orderStorage.UpdateOrder(order);
                 await _daprClient.PublishEventAsync(FastFoodConstants.PubSubName, FastFoodConstants.EventNames.OrderClosed, order.ToDto());
-                await _daprClient.InvokeMethodAsync(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/closeOrder", order.Id);
+                using var request = _serviceInvoker.CreateInvokeMethodRequest(HttpMethod.Post, FastFoodConstants.Services.FinanceService, "api/OrderFinance/closeOrder", order.Id);
+                await _serviceInvoker.InvokeMethodAsync<object>(request);
                 LogServed(context.InstanceId, order.Id);
             }
             else
@@ -43,7 +47,7 @@ public partial class OrderServedActivity : WorkflowActivity<OrderServedEvent, Or
         {
             LogServedFailed(context.InstanceId,input.OrderId);
         }
-        return order;
+        return order ?? throw new InvalidOperationException($"Order {input.OrderId} was not found.");
     }
 
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "[Workflow {instanceId}] Served order {orderId}")]

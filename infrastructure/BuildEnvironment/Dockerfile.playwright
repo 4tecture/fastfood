@@ -1,0 +1,40 @@
+ARG NET_CORE_SDK_VERSION=10.0.400
+ARG PLAYWRIGHT_VERSION=1.62.0
+ARG POWERSHELL_VERSION=7.6.4
+
+FROM mcr.microsoft.com/dotnet/sdk:${NET_CORE_SDK_VERSION} AS dotnet-sdk
+FROM mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble
+
+ARG NET_CORE_SDK_VERSION
+ARG PLAYWRIGHT_VERSION
+ARG POWERSHELL_VERSION
+
+LABEL maintainer="info@4tecture.ch"
+LABEL version="${NET_CORE_SDK_VERSION}"
+LABEL description="FastFood worker image for running .NET Playwright system tests."
+LABEL org.opencontainers.image.title="fastfood-buildenv-playwright"
+LABEL org.opencontainers.image.version="${NET_CORE_SDK_VERSION}"
+LABEL org.opencontainers.image.description=".NET ${NET_CORE_SDK_VERSION} and Playwright ${PLAYWRIGHT_VERSION} system-test worker"
+
+ENV DOTNET_ROOT=/usr/share/dotnet \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    POWERSHELL_TELEMETRY_OPTOUT=1
+
+COPY --from=dotnet-sdk /usr/share/dotnet /usr/share/dotnet
+
+# Azure Pipelines tasks and the system-test template require dotnet, pwsh,
+# curl, and jq on PATH. The Playwright base supplies Node.js, browsers, and
+# their matching native dependencies.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl jq; \
+    rm -rf /var/lib/apt/lists/*; \
+    ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet; \
+    dotnet tool install --tool-path /usr/local/share/dotnet-tools powershell --version "${POWERSHELL_VERSION}"; \
+    ln -s /usr/local/share/dotnet-tools/pwsh /usr/local/bin/pwsh; \
+    dotnet --info; \
+    pwsh -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion'
+
+# Keep the root default because Azure Pipelines initializes Linux container
+# jobs by creating its runtime user and sudo group in /etc.

@@ -1,5 +1,5 @@
-using Dapr.Client;
 using FastFood.Common;
+using FastFood.Common.ServiceInvocation;
 using FrontendKitchenMonitor.Controllers;
 using KitchenService.Common.Dtos;
 using Microsoft.AspNetCore.Mvc;
@@ -11,13 +11,13 @@ namespace FrontendKitchenMonitor.Unit.Tests.Controllers;
 
 public class KitchenWorkControllerTests
 {
-    private readonly Mock<DaprClient> _daprClientMock;
+    private readonly Mock<IDaprServiceInvoker> _daprClientMock;
     private readonly Mock<ILogger<KitchenWorkController>> _loggerMock;
     private readonly KitchenWorkController _controller;
 
     public KitchenWorkControllerTests()
     {
-        _daprClientMock = new Mock<DaprClient>();
+        _daprClientMock = new Mock<IDaprServiceInvoker>();
         _loggerMock = new Mock<ILogger<KitchenWorkController>>();
         _controller = new KitchenWorkController(_daprClientMock.Object, _loggerMock.Object);
     }
@@ -97,12 +97,8 @@ public class KitchenWorkControllerTests
         _daprClientMock.Setup(m => m.CreateInvokeMethodRequest(HttpMethod.Get, FastFoodConstants.Services.KitchenService, $"api/kitchenwork/pendingorder/{orderId}"))
             .Returns(request);
         
-        var httpRequestException = new HttpRequestException("Not found", null, HttpStatusCode.NotFound);
-        var httpResponse = new HttpResponseMessage(HttpStatusCode.NotFound);
-        var invocationException = new InvocationException(FastFoodConstants.Services.KitchenService, $"api/kitchenwork/pendingorder/{orderId}", httpRequestException, httpResponse);
-        
         _daprClientMock.Setup(m => m.InvokeMethodAsync<KitchenOrderDto>(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(invocationException);
+            .ThrowsAsync(new HttpRequestException("Not found", null, HttpStatusCode.NotFound));
 
         // Act
         var result = await _controller.GetPendingOrder(orderId);
@@ -113,7 +109,7 @@ public class KitchenWorkControllerTests
     }
 
     [Fact]
-    public async Task GetPendingOrder_InvocationException_ReturnsInternalServerError()
+    public async Task GetPendingOrder_HttpRequestException_ReturnsInternalServerError()
     {
         // Arrange
         var orderId = Guid.NewGuid();
@@ -122,11 +118,8 @@ public class KitchenWorkControllerTests
         _daprClientMock.Setup(m => m.CreateInvokeMethodRequest(HttpMethod.Get, FastFoodConstants.Services.KitchenService, $"api/kitchenwork/pendingorder/{orderId}"))
             .Returns(request);
         
-        var httpResponse = new HttpResponseMessage(HttpStatusCode.InternalServerError);
-        var invocationException = new InvocationException(FastFoodConstants.Services.KitchenService, $"api/kitchenwork/pendingorder/{orderId}", new Exception("Service error"), httpResponse);
-        
         _daprClientMock.Setup(m => m.InvokeMethodAsync<KitchenOrderDto>(request, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(invocationException);
+            .ThrowsAsync(new HttpRequestException("Service error", null, HttpStatusCode.InternalServerError));
 
         // Act
         var result = await _controller.GetPendingOrder(orderId);

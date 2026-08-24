@@ -38,18 +38,15 @@ parameters:
 - name: publishArtifacts
   type: object
   default: []
-  # Each item: { dockerfileTarget: string, imageLabel: string, directoryToCopy: string, artifactName: string, publishType: string }
+  # Each item: { dockerfileTarget: string, artifactName: string, publishType: string }
+  # dockerfileTarget must expose only the intended files, normally from a scratch stage.
   # publishType: 'testResults' for test results (publishes test results and code coverage), any other value (e.g. 'artifact') for generic build artifacts.
   # Example:
   #   publishArtifacts:
-  #     - dockerfileTarget: "test"
-  #       imageLabel: "testresults"
-  #       directoryToCopy: "/testresults"
+  #     - dockerfileTarget: "test-results"
   #       artifactName: "testresults"
   #       publishType: "testResults"
-  #     - dockerfileTarget: "client"
-  #       imageLabel: "client"
-  #       directoryToCopy: "/nupkgs"
+  #     - dockerfileTarget: "clients"
   #       artifactName: "clients"
   #       publishType: "artifact"
 - name: netCoreAspNetVersion
@@ -61,6 +58,12 @@ parameters:
 - name: runOnHost
   type: boolean
   default: false
+- name: registryServer
+  type: string
+  default: $(azureContainerRegistry)
+- name: platforms
+  type: string
+  default: linux/amd64
 
 
 steps:
@@ -72,112 +75,192 @@ steps:
     Contents: |
       *.props
       *.ruleset
+      global.json
       nuget.config
     TargetFolder: ${{ parameters.buildContext }}
     SourceFolder: ${{ parameters.configurationContext }}
 
 - ${{ if gt(length(parameters.nugetFeeds), 0) }}:
   - pwsh: |
-      $nugetConfig = Get-Content -Path "$(Build.SourcesDirectory)/nuget.config" -Raw
-      $credentialBlock = "<packageSourceCredentials>"
-      foreach ($feed in @(${ { parameters.nugetFeeds } })) {
-        $credentialBlock += "<${feed.feedName}>"
-        $credentialBlock += "<add key=\"Username\" value=\"${feed.username}\" />"
-        $credentialBlock += "<add key=\"ClearTextPassword\" value=\"${feed.password}\" />"
-        $credentialBlock += "</${feed.feedName}>"
-      }
-      $credentialBlock += "</packageSourceCredentials>"
-      $nugetConfig = $nugetConfig -Replace '</configuration>', "$credentialBlock`n</configuration>"
-      $nugetConfig | Out-File -FilePath "$(Agent.TempDirectory)/nuget.config" -NoNewline -Encoding UTF8
-    displayName: 'Prepare nuget.config Secret File'
+      Copy-Item "$(Build.SourcesDirectory)/nuget.config" "$(Agent.TempDirectory)/nuget.config" -Force
+    displayName: 'Create temporary NuGet configuration'
     ${{ if eq(parameters.runOnHost, true) }}:   
       target: host
+  - ${{ each feed in parameters.nugetFeeds }}:
+    - pwsh: |
+        [xml]$config = Get-Content "$(Agent.TempDirectory)/nuget.config"
+        $root = $config.configuration.packageSourceCredentials
+        if ($null -eq $root) {
+          $root = $config.CreateElement('packageSourceCredentials')
+          [void]$config.configuration.AppendChild($root)
+        }
+        $existing = $root.SelectSingleNode('${{ feed.feedName }}')
+        if ($null -ne $existing) {
+          [void]$root.RemoveChild($existing)
+        }
+        $feedNode = $config.CreateElement('${{ feed.feedName }}')
+        foreach ($entry in @(
+          @{ Key = 'Username'; Value = $env:FASTFOOD_FEED_USERNAME },
+          @{ Key = 'ClearTextPassword'; Value = $env:FASTFOOD_FEED_PASSWORD }
+        )) {
+          $add = $config.CreateElement('add')
+          $add.SetAttribute('key', $entry.Key)
+          $add.SetAttribute('value', $entry.Value)
+          [void]$feedNode.AppendChild($add)
+        }
+        [void]$root.AppendChild($feedNode)
+        $config.Save("$(Agent.TempDirectory)/nuget.config")
+      displayName: 'Add credentials for NuGet feed ${{ feed.feedName }}'
+      env:
+        FASTFOOD_FEED_USERNAME: ${{ feed.username }}
+        FASTFOOD_FEED_PASSWORD: ${{ feed.password }}
+      ${{ if eq(parameters.runOnHost, true) }}:
+        target: host
+
+- task: Docker@2
+  displayName: 'Authenticate to container registry'
+  inputs:
+    containerRegistry: '${{ parameters.azureContainerRegistryServiceConnection }}'
+    command: 'login'
+  ${{ if eq(parameters.runOnHost, true) }}:   
+    target: host
+
+- bash: |
+    set -euo pipefail
+    FASTFOOD_REPOSITORY_SLUG='${{ parameters.dockerRepositoryName }}'
+    FASTFOOD_REPOSITORY_SLUG="${FASTFOOD_REPOSITORY_SLUG//\//-}"
+    FASTFOOD_BUILDER_NAME="fastfood-${{ parameters.buildId }}-$(System.JobAttempt)-${FASTFOOD_REPOSITORY_SLUG}"
+    echo "##vso[task.setvariable variable=fastFoodBuildxBuilder]${FASTFOOD_BUILDER_NAME}"
+
+    # A retry receives a new JobAttempt. Removing an exact stale name makes a
+    # manually re-run task deterministic without touching unrelated builders.
+    docker buildx rm "${FASTFOOD_BUILDER_NAME}" >/dev/null 2>&1 || true
+    docker buildx create \
+      --name "${FASTFOOD_BUILDER_NAME}" \
+      --driver docker-container >/dev/null
+    docker buildx inspect "${FASTFOOD_BUILDER_NAME}" --bootstrap
+  displayName: 'Create isolated Buildx builder'
+  ${{ if eq(parameters.runOnHost, true) }}:
+    target: host
 
 - ${{ each artifact in parameters.publishArtifacts }}:
-  - task: Docker@2
-    displayName: 'Build Docker Image (${{ artifact.dockerfileTarget }})'
-    inputs:
-      containerRegistry: '${{ parameters.azureContainerRegistryServiceConnection }}'
-      repository: '${{ parameters.dockerRepositoryName }}-${{ artifact.dockerfileTarget }}'
-      command: 'build'
-      Dockerfile: '${{ parameters.dockerFile }}'
-      buildContext: '${{ parameters.buildContext }}'
-      tags: |
-        ${{ lower(parameters.buildNumber) }}
-        latest
-      ${{ if gt(length(parameters.nugetFeeds), 0) }}:
-        arguments: --secret id=nugetconfig,src=$(Agent.TempDirectory)/nuget.config ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target ${{ artifact.dockerfileTarget }} --progress=plain
-      ${{ if eq(length(parameters.nugetFeeds), 0) }}:
-        arguments: ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target ${{ artifact.dockerfileTarget }} --progress=plain
-    ${{ if eq(parameters.runOnHost, true) }}:   
-      target: host
+  - bash: |
+      set -euo pipefail
+      FASTFOOD_NUGET_CONFIG='$(Build.SourcesDirectory)/nuget.config'
+      if [ -f '$(Agent.TempDirectory)/nuget.config' ]; then
+        FASTFOOD_NUGET_CONFIG='$(Agent.TempDirectory)/nuget.config'
+      fi
 
-  - pwsh: |
-      Write-Host "Create docker container by filter: label=${{ artifact.imageLabel }}=${{ parameters.buildId }}"
-      $id=docker images --filter "label=${{ artifact.imageLabel }}=${{ parameters.buildId }}" -q | Select-Object -First 1
-      Write-host "Image id: $($id)"
-      docker create --name ${{ artifact.artifactName }}container-${{ parameters.buildId }} $id
-      docker cp ${{ artifact.artifactName }}container-${{ parameters.buildId }}:${{ artifact.directoryToCopy }} $(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}
-      docker rm ${{ artifact.artifactName }}container-${{ parameters.buildId }}
-    displayName: 'Copy ${{ artifact.artifactName }} from container'
-    ${{ if eq(parameters.runOnHost, true) }}:   
+      FASTFOOD_ARTIFACT_NAME='${{ artifact.artifactName }}'
+      if [[ ! "${FASTFOOD_ARTIFACT_NAME}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+        echo "Invalid artifact name: ${FASTFOOD_ARTIFACT_NAME}" >&2
+        exit 1
+      fi
+      FASTFOOD_OUTPUT_DIRECTORY="$(Build.ArtifactStagingDirectory)/${FASTFOOD_ARTIFACT_NAME}"
+      rm -rf -- "${FASTFOOD_OUTPUT_DIRECTORY}"
+      mkdir -p "${FASTFOOD_OUTPUT_DIRECTORY}"
+      docker buildx build \
+        --builder '$(fastFoodBuildxBuilder)' \
+        --file '${{ parameters.dockerFile }}' \
+        --platform '${{ parameters.platforms }}' \
+        --target '${{ artifact.dockerfileTarget }}' \
+        --pull \
+        --progress=plain \
+        --provenance=false \
+        --sbom=false \
+        --output "type=local,dest=${FASTFOOD_OUTPUT_DIRECTORY}" \
+        ${{ parameters.dockerArguments }} \
+        --secret "id=nugetconfig,src=${FASTFOOD_NUGET_CONFIG}" \
+        '${{ parameters.buildContext }}'
+    displayName: 'Export ${{ artifact.artifactName }} from ${{ artifact.dockerfileTarget }}'
+    ${{ if eq(parameters.runOnHost, true) }}:
       target: host
 
   - ${{ if eq(artifact.publishType, 'testResults') }}:
+    - bash: |
+        set -euo pipefail
+        FASTFOOD_RESULTS_DIRECTORY='$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}'
+        find "${FASTFOOD_RESULTS_DIRECTORY}" -type f -name '*.trx' -print -quit | grep -q .
+        find "${FASTFOOD_RESULTS_DIRECTORY}" -type f -name '*.coverage.cobertura.*.xml' -print -quit | grep -q .
+      displayName: 'Validate ${{ artifact.artifactName }} evidence'
+      ${{ if eq(parameters.runOnHost, true) }}:
+        target: host
+
+- bash: |
+    set -euo pipefail
+    FASTFOOD_NUGET_CONFIG='$(Build.SourcesDirectory)/nuget.config'
+    if [ -f '$(Agent.TempDirectory)/nuget.config' ]; then
+      FASTFOOD_NUGET_CONFIG='$(Agent.TempDirectory)/nuget.config'
+    fi
+    mkdir -p '$(Build.ArtifactStagingDirectory)/image-metadata'
+    FASTFOOD_METADATA_FILE='$(Build.ArtifactStagingDirectory)/image-metadata/${{ parameters.dockerRepositoryName }}.json'
+    docker buildx build \
+      --builder '$(fastFoodBuildxBuilder)' \
+      --file '${{ parameters.dockerFile }}' \
+      --platform '${{ parameters.platforms }}' \
+      --target final \
+      --pull \
+      --tag '${{ parameters.registryServer }}/${{ parameters.dockerRepositoryName }}:${{ lower(parameters.buildNumber) }}' \
+      --provenance=mode=max \
+      --sbom=true \
+      --metadata-file "${FASTFOOD_METADATA_FILE}" \
+      ${{ parameters.dockerArguments }} \
+      --secret "id=nugetconfig,src=${FASTFOOD_NUGET_CONFIG}" \
+      --push \
+      '${{ parameters.buildContext }}'
+    FASTFOOD_IMAGE_DIGEST="$(jq -r '."containerimage.digest"' "${FASTFOOD_METADATA_FILE}")"
+    test -n "${FASTFOOD_IMAGE_DIGEST}"
+    test "${FASTFOOD_IMAGE_DIGEST}" != 'null'
+    echo "Published ${{ parameters.registryServer }}/${{ parameters.dockerRepositoryName }}@${FASTFOOD_IMAGE_DIGEST}"
+  displayName: 'Build and push immutable image with SBOM and provenance'
+  ${{ if eq(parameters.runOnHost, true) }}:   
+    target: host
+
+- bash: |
+    set -euo pipefail
+    docker buildx rm '$(fastFoodBuildxBuilder)' >/dev/null 2>&1 || true
+  displayName: 'Remove isolated Buildx builder'
+  condition: and(always(), ne(variables['fastFoodBuildxBuilder'], ''))
+  ${{ if eq(parameters.runOnHost, true) }}:
+    target: host
+
+- ${{ if gt(length(parameters.nugetFeeds), 0) }}:
+  - pwsh: |
+      Remove-Item "$(Agent.TempDirectory)/nuget.config" -Force -ErrorAction SilentlyContinue
+    displayName: 'Remove temporary NuGet credentials'
+    condition: always()
+    ${{ if eq(parameters.runOnHost, true) }}:
+      target: host
+
+- ${{ each artifact in parameters.publishArtifacts }}:
+  - ${{ if eq(artifact.publishType, 'testResults') }}:
     - task: PublishTestResults@2
-      displayName: 'Publish test results'
+      displayName: 'Publish ${{ artifact.artifactName }} test results'
+      condition: succeededOrFailed()
       inputs:
         testResultsFormat: 'VSTest'
         testResultsFiles: '**/*.trx'
         searchFolder: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}'
         testRunTitle: 'Unit Tests ${{ parameters.buildNumber }}'
-      ${{ if eq(parameters.runOnHost, true) }}:   
+        failTaskOnFailedTests: true
+        failTaskOnMissingResultsFile: true
+      ${{ if eq(parameters.runOnHost, true) }}:
         target: host
 
-    - task: PublishCodeCoverageResults@1
-      displayName: 'Publish code coverage results'
+    - task: PublishCodeCoverageResults@2
+      displayName: 'Publish ${{ artifact.artifactName }} code coverage'
+      condition: succeededOrFailed()
       inputs:
-        codeCoverageTool: 'Cobertura'
-        summaryFileLocation: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}/coverage/coverage.json'
-        reportDirectory: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}/coverage/reports'
-      ${{ if eq(parameters.runOnHost, true) }}:   
+        summaryFileLocation: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}/**/*.coverage.cobertura.*.xml'
+        failIfCoverageEmpty: true
+      ${{ if eq(parameters.runOnHost, true) }}:
         target: host
 
   - ${{ if ne(artifact.publishType, 'testResults') }}:
-    - task: PublishBuildArtifacts@1
+    - task: PublishPipelineArtifact@1
       displayName: 'Publish ${{ artifact.artifactName }}'
       inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}'
-        ArtifactName: '${{ artifact.artifactName }}'
-      ${{ if eq(parameters.runOnHost, true) }}:   
+        targetPath: '$(Build.ArtifactStagingDirectory)/${{ artifact.artifactName }}'
+        artifact: '${{ artifact.artifactName }}'
+      ${{ if eq(parameters.runOnHost, true) }}:
         target: host
-
-- task: Docker@2
-  displayName: 'Build Docker Image (final)'
-  inputs:
-    containerRegistry: '${{ parameters.azureContainerRegistryServiceConnection }}'
-    repository: '${{ parameters.dockerRepositoryName }}'
-    command: 'build'
-    Dockerfile: '${{ parameters.dockerFile }}'
-    buildContext: '${{ parameters.buildContext }}'
-    tags: |
-      ${{ lower(parameters.buildNumber) }}
-      latest
-    ${{ if gt(length(parameters.nugetFeeds), 0) }}:
-      arguments: --secret id=nugetconfig,src=$(Agent.TempDirectory)/nuget.config ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target final --progress=plain
-    ${{ if eq(length(parameters.nugetFeeds), 0) }}:
-      arguments: ${{ parameters.dockerArguments }} --build-arg BUILDID=${{ parameters.buildId }} --target final --progress=plain
-  ${{ if eq(parameters.runOnHost, true) }}:   
-    target: host
-
-- task: Docker@2
-  displayName: 'Push the docker image to the registry'
-  inputs:
-    containerRegistry: '${{ parameters.azureContainerRegistryServiceConnection }}'
-    repository: '${{ parameters.dockerRepositoryName }}'
-    command: 'push'
-    tags: |
-      ${{ lower(parameters.buildNumber) }}
-      latest
-  ${{ if eq(parameters.runOnHost, true) }}:   
-    target: host

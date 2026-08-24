@@ -1,3 +1,4 @@
 image:
   repository: __azureContainerRegistry__/kitchenservice
   tag: __artifactVersion__
+  digest: __imageDigest__

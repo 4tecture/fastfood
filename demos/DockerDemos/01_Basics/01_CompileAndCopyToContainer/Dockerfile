@@ -1,5 +1,5 @@
 # Use the official ASP.NET Core runtime as a parent image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0.3 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.11 AS base
 
 # Set the working directory in the container
 WORKDIR /app
@@ -9,6 +9,8 @@ COPY ./publish .
 
 # Expose port 8080 for the application
 EXPOSE 8080
+
+USER $APP_UID
 
 # Define the entry point for the container
 ENTRYPOINT ["dotnet", "FinanceService.dll"]

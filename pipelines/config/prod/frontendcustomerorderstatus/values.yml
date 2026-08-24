@@ -1,9 +1,16 @@
 image:
   repository: __azureContainerRegistry__/frontendcustomerorderstatus
   tag: __artifactVersion__
+  digest: __imageDigest__
+replicaCount: 2
+autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 10 }
+podDisruptionBudget: { enabled: true, minAvailable: 1 }
+networkPolicy:
+  enabled: true
+  ingressNamespaceSelector: { kubernetes.io/metadata.name: ingress-nginx }
 
 ingress:
-  enabled: enabled
+  enabled: true
   className: "nginx"
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-cluster
@@ -11,7 +18,7 @@ ingress:
     - host: customerorderstatus.fastfood.prod.aksdemo.4tecture.ch
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
   tls: 
   - secretName: frontendcustomerorderstatus-tls
     hosts:

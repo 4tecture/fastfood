@@ -32,7 +32,19 @@ internal class DbSchemaDeployer
             var dacService = NeedsAccessToken(connectionString) ? new DacServices(connectionString, new AzureAccessTokenProvider()) : new DacServices(connectionString);
             dacService.Message += MessageHandler;
             dacService.ProgressChanged += ProgressChangedHandler;
-            dacService.Publish(DacPackage.Load(dacpacFile), (new SqlConnectionStringBuilder(connectionString)).InitialCatalog, new PublishOptions() { DeployOptions = new DacDeployOptions() { BlockOnPossibleDataLoss = false, GenerateSmartDefaults = true } });
+            using var package = DacPackage.Load(dacpacFile);
+            dacService.Publish(package, (new SqlConnectionStringBuilder(connectionString)).InitialCatalog, new PublishOptions()
+            {
+                // DacFx defaults this to true and writes the generated script to
+                // Path.GetTempPath(). The migration does not consume PublishResult,
+                // so generating the script only adds I/O and deployment time.
+                GenerateDeploymentScript = false,
+                DeployOptions = new DacDeployOptions()
+                {
+                    BlockOnPossibleDataLoss = false,
+                    GenerateSmartDefaults = true
+                }
+            });
 
             while (operationStatus == DacOperationStatus.Pending || operationStatus == DacOperationStatus.Running)
             {
@@ -42,12 +54,12 @@ internal class DbSchemaDeployer
             return operationStatus == DacOperationStatus.Completed;
         }
 
-        private void ProgressChangedHandler(object sender, DacProgressEventArgs e)
+        private void ProgressChangedHandler(object? sender, DacProgressEventArgs e)
         {
             operationStatus = e.Status;
         }
 
-        private void MessageHandler(object sender, DacMessageEventArgs e)
+        private void MessageHandler(object? sender, DacMessageEventArgs e)
         {
             Console.WriteLine(e.Message);
         }

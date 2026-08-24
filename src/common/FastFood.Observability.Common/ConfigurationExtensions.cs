@@ -7,8 +7,8 @@ namespace FastFood.Observability.Common
 {
     public static class ConfigurationExtensions
     {
-        private static ImmutableList<int> _externalPortsCached;
-        private static IEnumerable<int> _internalPortsCached;
+        private static ImmutableList<int>? _externalPortsCached;
+        private static ImmutableList<int>? _internalPortsCached;
         private const int DefaultExternalPort = 8080;
         private const int DefaultInternalPort = 8081;
         
@@ -48,7 +48,7 @@ namespace FastFood.Observability.Common
             return ports;
         }
 
-        private static List<int> GetPorts(string portsValue, bool useCache = true)
+        private static List<int> GetPorts(string? portsValue)
         {
             var ports = new List<int>();
 
@@ -57,7 +57,7 @@ namespace FastFood.Observability.Common
                 var tokens = portsValue.Split(new char[] { ';', ',' });
                 foreach (var token in tokens)
                 {
-                    if (int.TryParse(token, out var port))
+                    if (int.TryParse(token, out var port) && port is >= 1 and <= 65535)
                     {
                         ports.Add(port);
                     }
@@ -74,7 +74,7 @@ namespace FastFood.Observability.Common
         
         public static ObservabilityOptions GetObservabilityOptions(this IConfiguration configuration)
         {
-            return configuration?.GetSection("Observability").Get<ObservabilityOptions>() ?? new ObservabilityOptions();
+            return configuration.GetSection("Observability").Get<ObservabilityOptions>() ?? new ObservabilityOptions();
         }
         
         public static ILoggerFactory GetBootstrapLoggerFactory(this IConfiguration configuration)

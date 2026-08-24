@@ -6,5 +6,5 @@ public class AssignInvoiceAddressEvent
 {
     public static string Name => nameof(AssignInvoiceAddressEvent);
     public Guid OrderId { get; set; }
-    public Address Address { get; set; }
+    public required Address Address { get; set; }
 }

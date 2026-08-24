@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["image", "serviceAccount", "resources", "securityContext"],
+  "properties": {
+    "replicaCount": { "type": "integer", "minimum": 1 },
+    "image": {
+      "type": "object",
+      "required": ["repository", "pullPolicy"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] },
+        "tag": { "type": "string" },
+        "digest": { "type": "string", "pattern": "^$|^sha256:[a-f0-9]{64}$" },
+        "dbDeployDigest": { "type": "string", "pattern": "^$|^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": { "automount": { "type": "boolean" } }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": { "enabled": { "type": "boolean" } }
+    },
+    "resources": {
+      "type": "object",
+      "required": ["requests", "limits"]
+    },
+    "securityContext": {
+      "type": "object",
+      "required": ["allowPrivilegeEscalation", "readOnlyRootFilesystem", "runAsNonRoot"]
+    },
+    "podDisruptionBudget": {
+      "type": "object",
+      "properties": { "enabled": { "type": "boolean" } }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": { "enabled": { "type": "boolean" } }
+    }
+  }
+}

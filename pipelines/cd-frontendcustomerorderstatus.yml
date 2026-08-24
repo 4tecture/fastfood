@@ -18,9 +18,12 @@ resources:
   - container: worker
     image: $(azureContainerRegistry)/fastfood-buildenv:$(NetCoreSdkVersion)
     endpoint: 4taksDemoAcr
+  - container: playwright
+    image: $(azureContainerRegistry)/fastfood-buildenv-playwright:$(NetCoreSdkVersion)
+    endpoint: 4taksDemoAcr
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'ubuntu-24.04'
 
 variables:
   - template: config/var-pool.yml
@@ -82,14 +85,14 @@ stages:
 
   - stage: PullRequest
     dependsOn: []
-    condition: and(succeeded(), ne(variables['System.PullRequest.PullRequestId'], ''))
+    condition: and(succeeded(), startsWith(variables['resources.pipeline.CIBuild.sourceBranch'], 'refs/pull/'))
     variables:
       - name: stagename
         value: pr
+      - name: pullRequestId
+        value: $[replace(replace(variables['resources.pipeline.CIBuild.sourceBranch'], 'refs/pull/', ''), '/merge', '')]
       - name: namespace
-        value: $(stagename)-$(System.PullRequest.PullRequestId)
-      - name: redisDB
-        value: $[counter(format('{0:yyyyMM}', pipeline.startTime), 3)]
+        value: $(stagename)-$(pullRequestId)
     jobs:
       - template: deploy/job-deployservicetok8s.yml
         parameters:
@@ -101,6 +104,8 @@ stages:
           chartPackage: '$(helmChartArtifactDownloadPath)'
           kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'
           updateBuildNumber: true
+          bootstrapPrEnvironment: true
+          pullRequestId: '$(pullRequestId)'
           
           pool:
             ${{ if eq(variables['poolMode'], 'HostedAgent') }}:
@@ -110,9 +115,10 @@ stages:
           jobName: 'deploy'
       - template: deploy/job-verifyprdeployment.yml
         parameters:
-          container: worker
+          container: playwright
           serviceName: '$(serviceName)'
-          displayName: 'Run System Tests for PR $(System.PullRequest.PullRequestId)'
+          displayName: 'Run System Tests for PR $(pullRequestId)'
+          pullRequestId: '$(pullRequestId)'
           posUrl: 'selfservicepos.fastfood.$(namespace).aksdemo.4tecture.ch'
           kitchenUrl: 'kitchenmonitor.fastfood.$(namespace).aksdemo.4tecture.ch'
           orderStatusUrl: 'customerorderstatus.fastfood.$(namespace).aksdemo.4tecture.ch'

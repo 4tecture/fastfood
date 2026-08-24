@@ -2,9 +2,15 @@ image:
   repository: __azureContainerRegistry__/financeservice
   dbdeployclirepository: __azureContainerRegistry__/financeservice-dbdeployment
   tag: __artifactVersion__
+  digest: __imageDigest__
+  dbDeployDigest: __dbDeployImageDigest__
 database:
   connectionString: __connectionString__
   useInMemoryDatabase: false
+  existingSecret: ""
+  createSecret: false
+migration:
+  enabled: true
 workloadIdentity:
   enabled: true
   provider: "Azure"

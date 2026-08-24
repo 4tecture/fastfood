@@ -23,10 +23,27 @@ public static class BrowserHelper
     /// <param name="context">The browser context to create the page in</param>
     /// <param name="config">Test configuration containing URLs</param>
     /// <returns>WelcomePage object ready for interaction</returns>
-    public static async Task<WelcomePage> OpenSelfServicePosAsync(IBrowserContext context, TestConfiguration config)
+    public static async Task<WelcomePage> OpenSelfServicePosAsync(
+        IBrowserContext context,
+        TestConfiguration config,
+        IReadOnlyDictionary<string, bool>? featureFlags = null)
     {
         var page = await context.NewPageAsync();
         await RegisterVideoFileRenaming(page, "self-service-pos");
+
+        if (featureFlags != null)
+        {
+            await page.RouteAsync("**/api/FeatureFlags**", async route =>
+            {
+                await route.FulfillAsync(new()
+                {
+                    Status = 200,
+                    ContentType = "application/json",
+                    Body = global::System.Text.Json.JsonSerializer.Serialize(featureFlags)
+                });
+            });
+        }
+
         var welcomePage = new WelcomePage(page, config.SelfServicePosUrl);
         await welcomePage.NavigateAsync();
         return welcomePage;
@@ -66,6 +83,11 @@ public static class BrowserHelper
 
     private static async Task RegisterVideoFileRenaming(IPage page, string appName)
     {
+        if (page.Video == null)
+        {
+            return;
+        }
+
         var videoPath = await page.Video.PathAsync();
         var fileName = Path.GetFileName(videoPath);
         var fileExtension = Path.GetExtension(videoPath);
