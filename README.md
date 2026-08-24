@@ -47,6 +47,7 @@ TLS ingress, admission controls, and signed image digests in shared clusters.
 
 ## Training paths
 
+- [GitHub Copilot coworker demo](demos/Copilot/CopilotToCoworker.md)
 - [Docker labs](demos/DockerDemos/01_Basics/index.md)
 - [Kubernetes workshop](demos/Kubernetes/README.md)
 - [Pipeline labs](demos/Pipelines/HOL/fastfood-templates.md)
