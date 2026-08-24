@@ -4,6 +4,10 @@ This runbook prepares and recovers the GitHub Copilot coworker demo. The live pa
 Azure DevOps; replace `tracker=azure-devops` with `tracker=github` to exercise the alternate
 reporting skill.
 
+The copy-ready live prompt sets `demo-run=true`. This skips duplicate detection for repeat
+presentations and marks the new work item as demo-generated. Omit that setting only when
+rehearsing the normal bounded duplicate policy.
+
 ## Before the audience arrives
 
 Run these downloads/builds before the session; do not spend stage time installing dependencies.
@@ -70,6 +74,7 @@ expected behavior, and, if it is a genuine defect, create a professional work it
 reproducible steps, acceptance criteria, and screenshot evidence.
 
 tracker=azure-devops
+demo-run=true
 Do not modify the application.
 ```
 
@@ -78,7 +83,7 @@ Human review checkpoint:
 - The behavior was reproduced twice from a fresh cart.
 - The screenshot exists under `output/playwright/` and contains no sensitive data.
 - Observations and hypotheses are clearly separated.
-- A duplicate search ran before creating the Bug.
+- Demo mode skipped duplicate detection and the Bug has the `copilot-demo` tag.
 - The Bug contains steps, expected/actual behavior, impact, evidence, and acceptance criteria.
 - `git status --short` is empty.
 

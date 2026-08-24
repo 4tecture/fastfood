@@ -1,7 +1,7 @@
 ---
 name: Defect Investigator
 description: Reproduce customer-reported defects in the running FastFood application, collect evidence, and create a professional Azure DevOps Bug or GitHub issue without changing source code.
-argument-hint: Describe the customer feedback and specify tracker=azure-devops or tracker=github.
+argument-hint: Describe the customer feedback, specify tracker=azure-devops or tracker=github, and optionally set demo-run=true.
 model: ['GPT-5.6 Sol', 'Claude Sonnet 4.6']
 tools: ['read', 'search', 'execute', 'browser', 'azure-devops/*', 'github/*']
 agents: []
@@ -37,7 +37,9 @@ is verified, follow exactly one reporting skill based on the requested tracker:
    timestamps, URLs, and screenshot paths.
 6. Source inspection is allowed only to form explicitly labeled hypotheses. Do not state
    a hypothesis as a confirmed root cause.
-7. Create a work item only after reproduction succeeds. Search for likely duplicates first.
+7. Create a work item only after reproduction succeeds. Pass `demo-run` to the selected
+   reporting skill. With `demo-run=true`, skip duplicate detection and mark the new artifact
+   as a Copilot demo artifact. Otherwise use the reporting skill's bounded duplicate check.
 8. Confirm the repository working tree is unchanged before finishing.
 
 Never edit source, tests, configuration, or generated repository files. Never fix the
