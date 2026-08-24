@@ -1,4 +1,6 @@
-﻿name: fastfood
+﻿# Default: simplified HOL stack with in-memory finance storage and no telemetry backends.
+# Full:    ./start-compose.sh --full (or use docker-compose.full.yml as documented there).
+name: fastfood
 
 services:
   
@@ -12,17 +14,7 @@ services:
       - "127.0.0.1:8901:8080"
     environment:
       - DAPR_HTTP_PORT=3500
-      - DAPR_GRPC_PORT=50001  
-      - Database__ApplySchemaOnStartup=true
-      # The fallback is intentionally workstation/demo-only so that ordinary
-      # `docker compose up`, `ps`, and `down` remain usable. start-compose.*
-      # overrides it with a randomly generated value from ignored src/.env.
-      - ConnectionStrings__FinanceDatabase=Server=sqldb-fastfood;Database=Finance;User Id=sa;Password=${MSSQL_SA_PASSWORD:-FastFood-LocalDemo_2026!};Encrypt=True;TrustServerCertificate=True
-      # - Observability__UseTracingExporter=otlp
-      # - Observability__UseMetricsExporter=otlp
-      # - Observability__UseLogExporter=OtlpAndAnsiConsole
-      # - Observability__SamplerType=AlwaysOnSampler
-      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
+      - DAPR_GRPC_PORT=50001
       - Observability__UseTracingExporter=none
       - Observability__UseMetricsExporter=none
       - Observability__UseLogExporter=AnsiConsole
@@ -75,11 +67,6 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      # - Observability__UseTracingExporter=otlp
-      # - Observability__UseMetricsExporter=otlp
-      # - Observability__UseLogExporter=OtlpAndAnsiConsole
-      # - Observability__SamplerType=AlwaysOnSampler
-      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
       - Observability__UseTracingExporter=none
       - Observability__UseMetricsExporter=none
       - Observability__UseLogExporter=AnsiConsole
@@ -136,11 +123,6 @@ services:
       # Kubernetes/Helm keeps the endpoint disabled by default.
       - Demos__SecretEndpoint__Enabled=true
       - Demos__SecretEndpoint__AllowedKeys__0=demo.sample
-      # - Observability__UseTracingExporter=otlp
-      # - Observability__UseMetricsExporter=otlp
-      # - Observability__UseLogExporter=OtlpAndAnsiConsole
-      # - Observability__SamplerType=AlwaysOnSampler
-      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
       - Observability__UseTracingExporter=none
       - Observability__UseMetricsExporter=none
       - Observability__UseLogExporter=AnsiConsole
@@ -193,11 +175,6 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      # - Observability__UseTracingExporter=otlp
-      # - Observability__UseMetricsExporter=otlp
-      # - Observability__UseLogExporter=OtlpAndAnsiConsole
-      # - Observability__SamplerType=AlwaysOnSampler
-      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
       - Observability__UseTracingExporter=none
       - Observability__UseMetricsExporter=none
       - Observability__UseLogExporter=AnsiConsole
@@ -250,11 +227,6 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      # - Observability__UseTracingExporter=otlp
-      # - Observability__UseMetricsExporter=otlp
-      # - Observability__UseLogExporter=OtlpAndAnsiConsole
-      # - Observability__SamplerType=AlwaysOnSampler
-      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
       - Observability__UseTracingExporter=none
       - Observability__UseMetricsExporter=none
       - Observability__UseLogExporter=AnsiConsole
@@ -312,11 +284,6 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      # - Observability__UseTracingExporter=otlp
-      # - Observability__UseMetricsExporter=otlp
-      # - Observability__UseLogExporter=OtlpAndAnsiConsole
-      # - Observability__SamplerType=AlwaysOnSampler
-      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
       - Observability__UseTracingExporter=none
       - Observability__UseMetricsExporter=none
       - Observability__UseLogExporter=AnsiConsole
@@ -374,11 +341,6 @@ services:
     environment:
       - DAPR_HTTP_PORT=3500
       - DAPR_GRPC_PORT=50001
-      # - Observability__UseTracingExporter=otlp
-      # - Observability__UseMetricsExporter=otlp
-      # - Observability__UseLogExporter=OtlpAndAnsiConsole
-      # - Observability__SamplerType=AlwaysOnSampler
-      # - Observability__OtlpExporter__Endpoint=http://otel-collector:4317
       - Observability__UseTracingExporter=none
       - Observability__UseMetricsExporter=none
       - Observability__UseLogExporter=AnsiConsole
@@ -513,7 +475,7 @@ services:
       - fastfoodnet
 
   sqldb:
-    profiles: ["database"]
+    profiles: ["full"]
     container_name: sqldb-fastfood
     hostname: sqldb-fastfood
     image: "mcr.microsoft.com/mssql/server:2025-CU7-ubuntu-24.04"
@@ -585,10 +547,10 @@ services:
           - grafana.localtest.me
           - jaeger.localtest.me
 
-  # The observability stack is opt-in for the Copilot HOL. Start it with
-  # `docker compose --profile observability up --build` when needed.
+  # The SQL and observability services share the opt-in `full` profile. The
+  # companion docker-compose.full.yml also enables their application settings.
   otel-collector:
-    profiles: ["observability"]
+    profiles: ["full"]
     image: otel/opentelemetry-collector-contrib:0.158.0
     container_name: otel-collector
     deploy:
@@ -614,7 +576,7 @@ services:
       - fastfoodnet
 
   grafana:
-    profiles: ["observability"]
+    profiles: ["full"]
     image: grafana/grafana:13.1.3
     container_name: grafana
     deploy:
@@ -635,7 +597,7 @@ services:
       - fastfoodnet
 
   jaeger:
-    profiles: ["observability"]
+    profiles: ["full"]
     image: cr.jaegertracing.io/jaegertracing/jaeger:2.20.0
     container_name: jaeger
     command:
@@ -665,7 +627,7 @@ services:
       - fastfoodnet
 
   loki:
-    profiles: ["observability"]
+    profiles: ["full"]
     image: grafana/loki:3.7.6
     container_name: loki
     ports:
@@ -677,7 +639,7 @@ services:
       - fastfoodnet
 
   prometheus:
-    profiles: ["observability"]
+    profiles: ["full"]
     image: quay.io/prometheus/prometheus:v3.13.2
     container_name: prometheus
     command:

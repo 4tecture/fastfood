@@ -1,0 +1,65 @@
+# Full local training stack overlay.
+#
+# Recommended:
+#   ./start-compose.sh --full
+#   ./start-compose.ps1 --full
+#
+# Direct Compose equivalent:
+#   docker compose -f docker-compose.yml -f docker-compose.full.yml --profile full up --build
+
+x-full-observability: &full-observability
+  Observability__UseTracingExporter: otlp
+  Observability__UseMetricsExporter: otlp
+  Observability__UseLogExporter: OtlpAndAnsiConsole
+  Observability__SamplerType: AlwaysOnSampler
+  Observability__OtlpExporter__Endpoint: http://otel-collector:4317
+
+x-full-dapr-config: &full-dapr-config
+  - ../infrastructure-dev/dapr/config/config.full.yaml:/config/config.yaml:ro
+
+services:
+  financeservice:
+    environment:
+      <<: *full-observability
+      FeatureManagement__UseInMemoryDatabase: "false"
+      Database__ApplySchemaOnStartup: "true"
+      ConnectionStrings__FinanceDatabase: Server=sqldb-fastfood;Database=Finance;User Id=sa;Password=${MSSQL_SA_PASSWORD:-FastFood-LocalDemo_2026!};Encrypt=True;TrustServerCertificate=True
+
+  financeservice-dapr:
+    volumes: *full-dapr-config
+
+  kitchenservice:
+    environment: *full-observability
+
+  kitchenservice-dapr:
+    volumes: *full-dapr-config
+
+  orderservice:
+    environment: *full-observability
+
+  orderservice-dapr:
+    volumes: *full-dapr-config
+
+  orderserviceactors:
+    environment: *full-observability
+
+  orderserviceactors-dapr:
+    volumes: *full-dapr-config
+
+  frontendselfservicepos:
+    environment: *full-observability
+
+  frontendselfservicepos-dapr:
+    volumes: *full-dapr-config
+
+  frontendkitchenmonitor:
+    environment: *full-observability
+
+  frontendkitchenmonitor-dapr:
+    volumes: *full-dapr-config
+
+  frontendcustomerorderstatus:
+    environment: *full-observability
+
+  frontendcustomerorderstatus-dapr:
+    volumes: *full-dapr-config
