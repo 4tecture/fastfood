@@ -35,16 +35,21 @@ bash ./setup.sh
 - Add a production `data-testid` only when the required state is otherwise unobservable.
 - Keep recordings and screenshots under ignored output directories.
 
-## Cart aggregation regression
+## Regression design
 
-Only when the work item concerns duplicate-product aggregation, load
-[the cart scenario](references/cart-aggregation-scenario.md). The important Page Object contract
-is that `AddProductAsync` completes when the requested cart state is observable. A wait based only
-on line-count growth is invalid when an existing line may change quantity.
-
-Before editing, compare the acceptance criteria with existing coverage. If the scenario is already
-durably covered and the latest changes did not alter selectors, waits, or user-visible behavior,
-make no edits and rerun the focused test.
+- Treat the work item, its reproduction evidence, and its acceptance criteria as the source of
+  expected behavior. Do not rely on a defect-specific scenario embedded in this skill.
+- Inspect the existing tests and Page Objects before designing coverage. Let the observed defect
+  determine the journey, test data, actions, assertions, and any required Page Object changes.
+- Prefer the smallest journey that proves the user-visible contract and protects relevant
+  neighboring state from regression. Assert observable business outcomes rather than internal
+  implementation details.
+- A Page Object action completes only when its intended postcondition is observable. Do not assume
+  that every state-changing action creates a new DOM element; wait for the actual state requested
+  by the caller.
+- Before editing, compare the acceptance criteria with existing coverage. If it is already durably
+  covered and the latest changes did not alter selectors, waits, or user-visible behavior, make no
+  edits and rerun the focused test.
 
 ## Validation
 

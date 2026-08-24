@@ -131,19 +131,20 @@ cd ..
 
 ## Demo 3: make the behavior durable
 
-The **UI Test Engineer** should add a focused C# Playwright regression that:
-
-1. Adds product A once.
-2. Adds product B once.
-3. Adds product A again with quantity two in a separate action.
-4. Asserts two cart lines, quantities three and one, and the calculated total.
-5. Updates the Page Object wait so an existing line's quantity update is observable.
-6. Uses no fixed delay and no direct `IPage` access from the test.
+The **UI Test Engineer** derives a focused C# Playwright regression from the Bug's reproduction
+evidence and acceptance criteria. Do not prescribe its concrete products, quantities, action
+sequence, assertions, or Page Object implementation in this runbook. The generated coverage
+should prove the user-visible correction, protect relevant neighboring cart state, and verify the
+resulting totals.
 
 Human review checkpoint:
 
 - Test intent is readable without selectors.
-- Selectors and waits remain in `ProductsPage`.
+- Selectors and waits remain in the relevant Page Object.
+- The journey and assertions are traceable to the Bug rather than a prewritten test recipe.
+- State-changing actions wait for their observable postconditions without assuming that a new DOM
+  element must appear.
+- The test uses no fixed delay and no direct `IPage` access.
 - The focused test passes against the rebuilt stack.
 - The agent reports the exact command and result.
 
