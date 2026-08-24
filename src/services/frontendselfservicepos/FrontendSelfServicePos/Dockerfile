@@ -2,8 +2,8 @@
 # These arguments allow us to easily change the base images if needed.
 ARG IMAGE_NET_ASPNET=mcr.microsoft.com/dotnet/aspnet
 ARG IMAGE_NET_SDK=mcr.microsoft.com/dotnet/sdk
-ARG IMAGE_NET_ASPNET_VERSION=10.0.10
-ARG IMAGE_NET_SDK_VERSION=10.0.302
+ARG IMAGE_NET_ASPNET_VERSION=10.0.11
+ARG IMAGE_NET_SDK_VERSION=10.0.400
 
 # Allow a suffix to be appended to the final ASP.NET image for development customization.
 # This can be overridden at build time with --build-arg ASPNET_SUFFIX=-noble-chiseled-extra
@@ -53,9 +53,9 @@ RUN --mount=type=secret,id=nugetconfig,required=false \
 # Copy the remainder of the source code to the container.
 COPY . .
 
-# Build the FrontendSelfServicePos project in Release mode and output the build results to /app/build.
-# The --no-restore flag is used because restore was already performed.
-RUN dotnet build "services/frontendselfservicepos/FrontendSelfServicePos/FrontendSelfServicePos.csproj" -c Release -o /app/build --no-restore
+# Publish the runtime payload once. The later publish stage inherits it through
+# the test stage, so the final image is test-gated without compiling it again.
+RUN dotnet publish "services/frontendselfservicepos/FrontendSelfServicePos/FrontendSelfServicePos.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
 RUN dotnet build "services/frontendselfservicepos/FrontendSelfServicePos.Unit.Tests/FrontendSelfServicePos.Unit.Tests.csproj" -c Release --no-restore
 
 # ---------------------------------------------------------------------
@@ -63,24 +63,22 @@ RUN dotnet build "services/frontendselfservicepos/FrontendSelfServicePos.Unit.Te
 # ---------------------------------------------------------------------
 
 FROM build AS test
-# Accept a build ID as an argument to label the test results; defaults to "localbuild".
-ARG BUILDID=localbuild
-# Label the container with the build ID for test results traceability.
-LABEL testresults=${BUILDID}
 
 # Execute tests for FrontendSelfServicePos.Unit.Tests with code coverage.
-RUN dotnet test services/frontendselfservicepos/FrontendSelfServicePos.Unit.Tests/FrontendSelfServicePos.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
-    --logger "trx;LogFileName=test_results_frontendselfservicepos.trx" \
-    --collect:"XPlat Code Coverage"
+RUN dotnet test --project services/frontendselfservicepos/FrontendSelfServicePos.Unit.Tests/FrontendSelfServicePos.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
+    --report-trx --report-trx-filename=test_results_frontendselfservicepos.trx \
+    --coverlet --coverlet-file-prefix=frontendselfservicepos --coverlet-output-format=cobertura
+
+# Export only the .NET test evidence, rather than the complete SDK filesystem.
+FROM scratch AS test-results
+COPY --from=test /testresults /
 
 # ---------------------------------------------------------------------
 # Stage 4: Publish the application
 # ---------------------------------------------------------------------
 
-FROM build AS publish
-# Publish the FrontendSelfServicePos project in Release mode to the /app/publish directory.
-# The /p:UseAppHost=false flag prevents the generation of platform-specific executables.
-RUN dotnet publish "services/frontendselfservicepos/FrontendSelfServicePos/FrontendSelfServicePos.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
+FROM test AS publish
+# The tested stage already contains the published runtime payload.
 
 # Modify file permissions: directories get 755 and files get 644 for better security and accessibility.
 RUN find /app/publish -type d -exec chmod 755 {} \; && \
@@ -90,7 +88,7 @@ RUN find /app/publish -type d -exec chmod 755 {} \; && \
 # Stage 5: Build the client application
 # ---------------------------------------------------------------------
 
-FROM node:24.19.0-bookworm-slim AS client-build
+FROM node:24.19.0-bookworm-slim AS client-dependencies
 WORKDIR /src
 # Use separate COPY commands to ensure no issues with file existence
 COPY services/frontendselfservicepos/FrontendSelfServicePos/clientapp/package.json services/frontendselfservicepos/FrontendSelfServicePos/clientapp/
@@ -103,7 +101,13 @@ RUN --mount=type=secret,id=npmrc,required=false \
           else \
               npm ci; \
           fi'
+
+FROM client-dependencies AS client-test
 COPY services/frontendselfservicepos/FrontendSelfServicePos/clientapp .
+RUN npm run lint
+RUN npm test
+
+FROM client-test AS client-build
 RUN npm run build
 
 # ---------------------------------------------------------------------

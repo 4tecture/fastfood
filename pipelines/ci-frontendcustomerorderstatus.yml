@@ -45,9 +45,7 @@ jobs:
           buildContext: '$(Build.SourcesDirectory)/src'
           dockerArguments: '--build-arg IMAGE_NET_ASPNET_VERSION=$(netCoreAspNetVersion) --build-arg IMAGE_NET_SDK_VERSION=$(netCoreSdkVersion)'
           publishArtifacts:
-            - dockerfileTarget: "test"
-              imageLabel: "testresults"
-              directoryToCopy: "/testresults"
+            - dockerfileTarget: "test-results"
               artifactName: "testresults"
               publishType: "testResults"
       pool:

@@ -16,9 +16,16 @@ spec:
       {{- include "financeservice.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- if or .Values.podAnnotations (and .Values.workloadIdentity.enabled (eq .Values.workloadIdentity.provider "Azure") .Values.migration.enabled .Values.migration.waitForJob.enabled (not .Values.database.useInMemoryDatabase)) }}
       annotations:
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if and $.Values.workloadIdentity.enabled (eq $.Values.workloadIdentity.provider "Azure") $.Values.migration.enabled $.Values.migration.waitForJob.enabled (not $.Values.database.useInMemoryDatabase) }}
+        # The migration waiter calls Kubernetes, not Azure. Keep the Azure
+        # federation token out of that init container.
+        azure.workload.identity/skip-containers: "finance-migration-wait"
+        {{- end }}
       {{- end }}
       labels:
         {{- include "financeservice.labels" . | nindent 8 }}
@@ -37,6 +44,27 @@ spec:
       serviceAccountName: {{ include "financeservice.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if and .Values.migration.enabled .Values.migration.waitForJob.enabled (not .Values.database.useInMemoryDatabase) }}
+      initContainers:
+        - name: finance-migration-wait
+          image: "{{ .Values.migration.waitForJob.image.repository }}@{{ required "migration.waitForJob.image.digest is required" .Values.migration.waitForJob.image.digest }}"
+          imagePullPolicy: {{ .Values.migration.waitForJob.image.pullPolicy }}
+          args:
+            - job
+            - '{{ include "financeservice.fullname" . }}-dbdeployment-{{ .Release.Revision }}'
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            {{- toYaml .Values.migration.waitForJob.resources | nindent 12 }}
+          volumeMounts:
+            - name: migration-wait-kube-api-access
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -125,9 +153,31 @@ spec:
               value: {{ $value | quote }}
               {{- end }}
             {{- end }}
-      {{- with .Values.volumes }}
+      {{- if or .Values.volumes (and .Values.migration.enabled .Values.migration.waitForJob.enabled (not .Values.database.useInMemoryDatabase)) }}
       volumes:
+        {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if and $.Values.migration.enabled $.Values.migration.waitForJob.enabled (not $.Values.database.useInMemoryDatabase) }}
+        - name: migration-wait-kube-api-access
+          projected:
+            defaultMode: 420
+            sources:
+              - serviceAccountToken:
+                  expirationSeconds: {{ $.Values.migration.waitForJob.tokenExpirationSeconds }}
+                  path: token
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - downwardAPI:
+                  items:
+                    - fieldRef:
+                        apiVersion: v1
+                        fieldPath: metadata.namespace
+                      path: namespace
+        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

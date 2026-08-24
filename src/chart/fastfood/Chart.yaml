@@ -15,7 +15,7 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.2.0
+version: 0.2.1
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
@@ -28,20 +28,20 @@ dependencies:
      version: 0.1.0
      repository: file://../daprenv
    - name: financeservice
-     version: 0.2.0
+     version: 0.2.1
      repository: file://../../services/finance/FinanceService/chart/financeservice
    - name: frontendcustomerorderstatus
-     version: 0.2.0
+     version: 0.2.1
      repository: file://../../services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/chart/frontendcustomerorderstatus
    - name: frontendkitchenmonitor
-     version: 0.2.0
+     version: 0.2.1
      repository: file://../../services/frontendkitchenmonitor/FrontendKitchenMonitor/chart/frontendkitchenmonitor
    - name: frontendselfservicepos
-     version: 0.2.0
+     version: 0.2.1
      repository: file://../../services/frontendselfservicepos/FrontendSelfServicePos/chart/frontendselfservicepos
    - name: kitchenservice
-     version: 0.2.0
+     version: 0.2.1
      repository: file://../../services/kitchen/KitchenService/chart/kitchenservice
    - name: orderservice
-     version: 0.2.0
+     version: 0.2.1
      repository: file://../../services/order/OrderService/chart/orderservice

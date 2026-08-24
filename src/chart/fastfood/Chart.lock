@@ -4,21 +4,21 @@ dependencies:
   version: 0.1.0
 - name: financeservice
   repository: file://../../services/finance/FinanceService/chart/financeservice
-  version: 0.2.0
+  version: 0.2.1
 - name: frontendcustomerorderstatus
   repository: file://../../services/frontendcustomerorderstatus/FrontendCustomerOrderStatus/chart/frontendcustomerorderstatus
-  version: 0.2.0
+  version: 0.2.1
 - name: frontendkitchenmonitor
   repository: file://../../services/frontendkitchenmonitor/FrontendKitchenMonitor/chart/frontendkitchenmonitor
-  version: 0.2.0
+  version: 0.2.1
 - name: frontendselfservicepos
   repository: file://../../services/frontendselfservicepos/FrontendSelfServicePos/chart/frontendselfservicepos
-  version: 0.2.0
+  version: 0.2.1
 - name: kitchenservice
   repository: file://../../services/kitchen/KitchenService/chart/kitchenservice
-  version: 0.2.0
+  version: 0.2.1
 - name: orderservice
   repository: file://../../services/order/OrderService/chart/orderservice
-  version: 0.2.0
-digest: sha256:fe213e8f6816b7479a3b6fee4ca2478d22a533d8546f895fa66094b51ae4c6e1
-generated: "2026-08-10T14:48:21.845904+02:00"
+  version: 0.2.1
+digest: sha256:5514d61a50af443076c95fff0f57302b9559f72ed1fa95bcf3f3d9ff90e18732
+generated: "2026-08-19T16:25:25.785929+02:00"

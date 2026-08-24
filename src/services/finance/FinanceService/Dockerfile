@@ -2,8 +2,8 @@
 # These arguments allow us to easily change the base images if needed.
 ARG IMAGE_NET_ASPNET=mcr.microsoft.com/dotnet/aspnet
 ARG IMAGE_NET_SDK=mcr.microsoft.com/dotnet/sdk
-ARG IMAGE_NET_ASPNET_VERSION=10.0.10
-ARG IMAGE_NET_SDK_VERSION=10.0.302
+ARG IMAGE_NET_ASPNET_VERSION=10.0.11
+ARG IMAGE_NET_SDK_VERSION=10.0.400
 
 # Allow a suffix to be appended to the final ASP.NET image for development customizatio n.
 # This can be overridden at build time with --build-arg ASPNET_SUFFIX=
@@ -60,9 +60,9 @@ RUN --mount=type=secret,id=nugetconfig,required=false \
 # Copy the remainder of the source code to the container.
 COPY . .
 
-# Build the FinanceService project in Release mode and output the build results to /app/build.
-# The --no-restore flag is used because restore was already performed.
-RUN dotnet build "services/finance/FinanceService/FinanceService.csproj" -c Release -o /app/build --no-restore
+# Publish the runtime payload once. The later publish stage inherits it through
+# the test stage, so the final image is test-gated without compiling it again.
+RUN dotnet publish "services/finance/FinanceService/FinanceService.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
 RUN dotnet build "services/finance/FinanceService.Unit.Tests/FinanceService.Unit.Tests.csproj" -c Release --no-restore
 RUN dotnet build "services/finance/FinanceService.Common.Unit.Tests/FinanceService.Common.Unit.Tests.csproj" -c Release --no-restore
 
@@ -71,29 +71,27 @@ RUN dotnet build "services/finance/FinanceService.Common.Unit.Tests/FinanceServi
 # ---------------------------------------------------------------------
 
 FROM build AS test
-# Accept a build ID as an argument to label the test results; defaults to "localbuild".
-ARG BUILDID=localbuild
-# Label the container with the build ID for test results traceability.
-LABEL testresults=${BUILDID}
 
 # Execute tests for FinanceService.Common.Unit.Tests with code coverage.
-RUN dotnet test services/finance/FinanceService.Common.Unit.Tests/FinanceService.Common.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
-    --logger "trx;LogFileName=test_results_financeservicecommon.trx" \
-    --collect:"XPlat Code Coverage"
+RUN dotnet test --project services/finance/FinanceService.Common.Unit.Tests/FinanceService.Common.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
+    --report-trx --report-trx-filename=test_results_financeservicecommon.trx \
+    --coverlet --coverlet-file-prefix=financeservicecommon --coverlet-output-format=cobertura
 
 # Execute tests for FinanceService.Unit.Tests with code coverage.
-RUN dotnet test services/finance/FinanceService.Unit.Tests/FinanceService.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
-    --logger "trx;LogFileName=test_results_financeservice.trx" \
-    --collect:"XPlat Code Coverage"
+RUN dotnet test --project services/finance/FinanceService.Unit.Tests/FinanceService.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
+    --report-trx --report-trx-filename=test_results_financeservice.trx \
+    --coverlet --coverlet-file-prefix=financeservice --coverlet-output-format=cobertura
+
+# Export only the test evidence, rather than the complete SDK filesystem.
+FROM scratch AS test-results
+COPY --from=test /testresults /
 
 # ---------------------------------------------------------------------
 # Stage 4: Publish the application
 # ---------------------------------------------------------------------
 
-FROM build AS publish
-# Publish the FinanceService project in Release mode to the /app/publish directory.
-# The /p:UseAppHost=false flag prevents the generation of platform-specific executables.
-RUN dotnet publish "services/finance/FinanceService/FinanceService.csproj" -c Release -o /app/publish --no-restore /p:UseAppHost=false
+FROM test AS publish
+# The tested stage already contains the published runtime payload.
 
 # Modify file permissions: directories get 755 and files get 644 for better security and accessibility.
 RUN find /app/publish -type d -exec chmod 755 {} \; && \

@@ -1,5 +1,5 @@
 # Use the official ASP.NET Core runtime as a parent image
-FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS base
+FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS base
 
 # Expose port 8080 for the application
 EXPOSE 8080

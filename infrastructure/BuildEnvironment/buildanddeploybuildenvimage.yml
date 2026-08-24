@@ -15,28 +15,92 @@ variables:
 
 stages:
 - stage: Build
-  displayName: Build image
+  displayName: Build worker images
   jobs:  
   - job: Build
-    displayName: Build and push Docker image
+    displayName: Build, verify, and push worker images
     pool:
       ${{ if eq(variables['poolMode'], 'HostedAgent') }}:
         vmImage: ${{ variables['poolVmImage'] }}
       ${{ if ne(variables['poolMode'], 'HostedAgent') }}:
         name: ${{ variables['buildPoolName'] }}
     steps:
+    - bash: |
+        set -euo pipefail
+
+        grep -Fq '<PackageReference Include="Microsoft.Playwright" Version="$(playwrightVersion)" />' \
+          'src/systemtests/FastFood.Ui.System.Tests/FastFood.Ui.System.Tests.csproj'
+        grep -Fq '<PackageReference Include="Microsoft.Playwright.Xunit.v3" Version="$(playwrightVersion)" />' \
+          'src/systemtests/FastFood.Ui.System.Tests/FastFood.Ui.System.Tests.csproj'
+      displayName: 'Verify Playwright version alignment'
+
     - task: Docker@2
+      displayName: 'Build general worker image'
       inputs:
         containerRegistry: $(azureContainerRegistryServiceConnection)
         repository: 'fastfood-buildenv'
-        command: 'buildAndPush'
+        command: 'build'
         Dockerfile: 'infrastructure/BuildEnvironment/Dockerfile'
-        buildArguments: |
-          NET_CORE_SDK_VERSION=$(NetCoreSdkVersion)
-          NODE_VERSION=$(nodeVersion)
-          POWERSHELL_VERSION=7.6.4
-          KUBECTL_VERSION=$(kubectlVersion)
-          HELM_VERSION=$(helmVersion)
+        buildContext: '$(Build.SourcesDirectory)'
+        arguments: >-
+          --pull
+          --build-arg NET_CORE_SDK_VERSION=$(NetCoreSdkVersion)
+          --build-arg NODE_VERSION=$(nodeVersion)
+          --build-arg POWERSHELL_VERSION=$(powershellVersion)
+          --build-arg KUBECTL_VERSION=$(kubectlVersion)
+          --build-arg HELM_VERSION=$(helmVersion)
         tags: |
           $(NetCoreSdkVersion)
-      displayName: 'Build and push the Docker image'
+
+    - task: Docker@2
+      displayName: 'Build Playwright worker image'
+      inputs:
+        containerRegistry: $(azureContainerRegistryServiceConnection)
+        repository: 'fastfood-buildenv-playwright'
+        command: 'build'
+        Dockerfile: 'infrastructure/BuildEnvironment/Dockerfile.playwright'
+        buildContext: '$(Build.SourcesDirectory)'
+        arguments: >-
+          --pull
+          --build-arg NET_CORE_SDK_VERSION=$(NetCoreSdkVersion)
+          --build-arg PLAYWRIGHT_VERSION=$(playwrightVersion)
+          --build-arg POWERSHELL_VERSION=$(powershellVersion)
+        tags: |
+          $(NetCoreSdkVersion)
+
+    - bash: |
+        set -euo pipefail
+
+        GENERAL_IMAGE="$(azureContainerRegistry)/fastfood-buildenv:$(NetCoreSdkVersion)"
+        PLAYWRIGHT_IMAGE="$(azureContainerRegistry)/fastfood-buildenv-playwright:$(NetCoreSdkVersion)"
+
+        GENERAL_SDK_VERSION="$(docker run --rm "${GENERAL_IMAGE}" dotnet --version)"
+        echo "General worker .NET SDK: ${GENERAL_SDK_VERSION}"
+        test "${GENERAL_SDK_VERSION}" = "$(NetCoreSdkVersion)"
+        docker run --rm "${GENERAL_IMAGE}" bash -c \
+          'set -e; for TOOL in node pwsh az kubectl helm cosign; do printf "%s: " "${TOOL}"; command -v "${TOOL}"; done'
+
+        PLAYWRIGHT_SDK_VERSION="$(docker run --rm "${PLAYWRIGHT_IMAGE}" dotnet --version)"
+        echo "Playwright worker .NET SDK: ${PLAYWRIGHT_SDK_VERSION}"
+        test "${PLAYWRIGHT_SDK_VERSION}" = "$(NetCoreSdkVersion)"
+        docker run --rm "${PLAYWRIGHT_IMAGE}" bash -c \
+          'set -e; for TOOL in node pwsh curl jq; do printf "%s: " "${TOOL}"; command -v "${TOOL}"; done; BROWSER=$(find "${PLAYWRIGHT_BROWSERS_PATH}"/chromium_headless_shell-* -type f \( -name headless_shell -o -name chrome-headless-shell \) -print -quit); if [ -z "${BROWSER}" ]; then echo "No Playwright Chromium headless-shell executable found under ${PLAYWRIGHT_BROWSERS_PATH}." >&2; exit 1; fi; echo "Playwright Chromium: ${BROWSER}"; "${BROWSER}" --version'
+      displayName: 'Verify worker image toolchains'
+
+    - task: Docker@2
+      displayName: 'Push general worker image'
+      inputs:
+        containerRegistry: $(azureContainerRegistryServiceConnection)
+        repository: 'fastfood-buildenv'
+        command: 'push'
+        tags: |
+          $(NetCoreSdkVersion)
+
+    - task: Docker@2
+      displayName: 'Push Playwright worker image'
+      inputs:
+        containerRegistry: $(azureContainerRegistryServiceConnection)
+        repository: 'fastfood-buildenv-playwright'
+        command: 'push'
+        tags: |
+          $(NetCoreSdkVersion)

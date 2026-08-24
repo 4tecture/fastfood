@@ -50,18 +50,18 @@ jobs:
             --build-arg IMAGE_NET_ASPNET_VERSION=$(netCoreAspNetVersion)
             --build-arg IMAGE_NET_SDK_VERSION=$(netCoreSdkVersion)
           publishArtifacts:
-            - dockerfileTarget: test
-              imageLabel: testresults
-              directoryToCopy: /testresults
+            - dockerfileTarget: test-results
               artifactName: testresults
               publishType: testResults
 ```
 
 The template uses a BuildKit secret for NuGet configuration, restores committed
-lock files in locked mode, runs the Docker `test` target, publishes TRX and
-Cobertura output, then pushes the final image once with an immutable build tag.
-Buildx attaches SBOM/provenance and writes the pushed digest to the
-`image-metadata` pipeline artifact.
+lock files in locked mode, exports the scratch `test-results` target directly
+to the pipeline workspace, publishes TRX and Cobertura output, then pushes the
+final image once with an immutable build tag. The same isolated Buildx builder
+serves both operations, so the final build reuses the tested graph. Buildx
+attaches SBOM/provenance and writes the pushed digest to the `image-metadata`
+pipeline artifact.
 
 ## 2. Add the blocking PR security job
 
@@ -94,10 +94,10 @@ deployment job with a different environment and values artifact:
       vmImage: ubuntu-24.04
 ```
 
-The Helm step is atomic and waits for readiness. Staging runs first; production
-depends on successful staging and should have an Azure DevOps environment
-approval/check. Pull requests deploy to `pr-<id>` independently and run the
-system-test verification job.
+The Helm step rolls back on failure and waits for workloads and migration Jobs.
+Staging runs first; production depends on successful staging and should have an
+Azure DevOps environment approval/check. Pull requests deploy to `pr-<id>`
+independently and run the system-test verification job.
 
 ## 4. Promote immutable bytes
 

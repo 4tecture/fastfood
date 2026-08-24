@@ -24,7 +24,8 @@ helm --namespace fastfood-training test financeservice
 
 The setup script creates a namespace enforcing the Restricted Pod Security
 Standard, builds the application image, loads it into kind, validates the Helm
-chart, performs an atomic deployment and waits for readiness.
+chart, enables rollback-on-failure semantics for the installed Helm major, and
+waits for workloads and migration Jobs.
 
 ## 2. Configuration and Secrets
 
@@ -75,6 +76,12 @@ kubectl --namespace fastfood-training get pod -o jsonpath='{range .items[*]}{.sp
 The application runs non-root with a read-only root filesystem, RuntimeDefault
 seccomp, no added capabilities, no privilege escalation, and no automatically
 mounted API token.
+
+For the Azure SQL deployment, Microsoft Entra Workload Identity injects a
+separate, audience-bound federation token into FinanceService. The database
+migration waiter receives only a short-lived Kubernetes API token and only in
+its init container; the application container cannot use that token to call
+Kubernetes.
 
 ## 6. Rollouts and rollback
 

@@ -16,11 +16,15 @@ variables:
 - name: helmVersion
   value: '4.2.3'
 - name: netCoreAspNetVersion
-  value: 10.0.10
+  value: 10.0.11
 - name: NetCoreSdkVersion
-  value: 10.0.302
+  value: 10.0.400
 - name: nodeVersion
   value: '24.19.0'
+- name: playwrightVersion
+  value: '1.62.0'
+- name: powershellVersion
+  value: '7.6.4'
 
 - name: dockerFilePath
   value: 'src/services/$(folderNameComponent)/$(folderNameService)/Dockerfile'

@@ -9,6 +9,8 @@ database:
   useInMemoryDatabase: false
   existingSecret: ""
   createSecret: false
+migration:
+  enabled: true
 workloadIdentity:
   enabled: true
   provider: "Azure"
@@ -21,3 +23,9 @@ deployWorkloadIdentity:
   azure:
     clientId: "__deployWorkloadIdentityClientId__"
     name: "__deployWorkloadIdentityName__"
+# PR initialization owns this ServiceAccount because the stable chart's
+# pre-install migration hook needs it before Helm creates ordinary resources.
+# The current chart reuses the same identity for its non-hook migration Job.
+deployServiceAccount:
+  create: false
+  name: financeservice-deployment

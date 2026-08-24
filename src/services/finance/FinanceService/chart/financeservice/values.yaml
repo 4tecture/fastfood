@@ -27,9 +27,9 @@ serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Automatically mount a ServiceAccount's API credentials?
-  # Dapr components from the previous shared-environment release may still
-  # use the Kubernetes secret store. Keep rolling service upgrades compatible
-  # until that component migration has reached every environment.
+  # Required during rolling upgrades while an older shared Dapr Kubernetes
+  # secret-store component may still be scoped to this application. Azure
+  # Workload Identity uses a separate audience-bound projected token.
   automount: true
   # Annotations to add to the service account
   annotations: {}
@@ -169,10 +169,11 @@ networkPolicy:
   ingressNamespaceSelector: {}
 
 migration:
-  enabled: true
+  # The default chart is runnable without external infrastructure. Production
+  # values explicitly enable the migration workflow and Azure SQL.
+  enabled: false
   backoffLimit: 2
   activeDeadlineSeconds: 600
-  ttlSecondsAfterFinished: 3600
   resources:
     requests:
       # Reserve enough capacity for DacFx model comparison without making the
@@ -183,12 +184,26 @@ migration:
       # Bound faulty migrations while retaining headroom for short DacFx peaks.
       cpu: "1"
       memory: 1Gi
+  waitForJob:
+    enabled: true
+    image:
+      repository: ghcr.io/4tecture/k8s-init-wait-for
+      digest: sha256:b2d36a1a622a4d0dee60d0c2b46d53d9f1199dd465db9cd0b2ed3b8b3a44e809
+      pullPolicy: IfNotPresent
+    tokenExpirationSeconds: 600
+    resources:
+      requests:
+        cpu: 10m
+        memory: 24Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
 
 database:
   # A credential-free workload-identity connection string may be supplied
   # directly. Use existingSecret when the connection string contains secrets.
   connectionString: ""
-  useInMemoryDatabase: false
+  useInMemoryDatabase: true
   existingSecret: ""
   # Demo-only escape hatch. Prefer an externally managed Secret because Helm
   # stores rendered values in release history.

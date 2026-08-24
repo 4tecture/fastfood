@@ -198,6 +198,37 @@ stages:
                     echo "##vso[task.setvariable variable=deployWorkloadIdentityClientId]$(DeploymentAzureIdentity.ClientId)"
                     echo "##vso[task.setvariable variable=deployWorkloadIdentityName]$(DeploymentAzureIdentity.Name)"
                   displayName: 'Set Finance Service deployment variables'
+                # The stable 1.0.1 chart runs its database migration as a
+                # pre-install hook. Hook resources execute before ordinary
+                # chart resources, so its deployment ServiceAccount must exist
+                # before Helm starts. Keep this PR-scoped identity external to
+                # the release so failed-install cleanup and Helm retries cannot
+                # remove it between attempts.
+                - task: Kubernetes@1
+                  displayName: 'Bootstrap Finance migration workload identity'
+                  condition: and(succeeded(), not(eq(variables['financeservice_EXISTS'], 'true')))
+                  inputs:
+                    connectionType: 'Kubernetes Service Connection'
+                    kubernetesServiceEndpoint: '$(kubernetesDeploymentServiceConnection)'
+                    namespace: '$(namespace)'
+                    command: apply
+                    useConfigurationFile: true
+                    configurationType: inline
+                    arguments: '--server-side --field-manager=fastfood-pr-bootstrap'
+                    inline: |
+                      apiVersion: v1
+                      kind: ServiceAccount
+                      metadata:
+                        name: financeservice-deployment
+                        namespace: $(namespace)
+                        labels:
+                          app.kubernetes.io/name: financeservice
+                          app.kubernetes.io/component: database-migration
+                          app.kubernetes.io/part-of: fastfood
+                          app.kubernetes.io/managed-by: azure-pipelines
+                        annotations:
+                          azure.workload.identity/client-id: "$(deployWorkloadIdentityClientId)"
+                      automountServiceAccountToken: false
                 - template: deploy/step-deployhelmchart.yml
                   parameters:
                     kubernetesDeploymentServiceConnection: '$(kubernetesDeploymentServiceConnection)'

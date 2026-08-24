@@ -68,42 +68,46 @@ steps:
       mkdir -p "$(Agent.TempDirectory)/Videos"
       chmod 700 "$(Agent.TempDirectory)/Videos"
     displayName: 'Create and set permissions for test execution'
+    # Pipeline artifacts and Agent.TempDirectory are host-owned bind mounts.
+    # Prepare their permissions in the owning host context before container use.
     target: host
 
-  - task: PowerShell@2
-    displayName: 'Install Playwright browsers'
-    inputs:
-      targetType: 'inline'
-      pwsh: true
-      script: |
-        $root = "$(Pipeline.Workspace)/${{ parameters.pipelineResourceAlias }}/${{ parameters.artifactName }}"
-        Write-Host "System tests root: $root"
+  # Run the staged test module through Microsoft.Testing.Platform. Using the
+  # downloaded artifact's global.json and the dedicated Playwright worker keeps
+  # the SDK, browser revision, and native dependencies deterministic.
+  - bash: |
+      set -euo pipefail
 
-        # Find playwright.ps1 anywhere under the artifact root
-        $scriptPath = Get-ChildItem -Path $root -Recurse -Filter 'playwright.ps1' | Select-Object -First 1
+      FASTFOOD_TEST_ROOT='$(Pipeline.Workspace)/${{ parameters.pipelineResourceAlias }}/${{ parameters.artifactName }}'
+      FASTFOOD_RESULTS_DIRECTORY='$(Agent.TempDirectory)/SystemTestResults'
+      mkdir -p "${FASTFOOD_RESULTS_DIRECTORY}"
 
-        if (-not $scriptPath) {
-          Write-Error "playwright.ps1 not found under $root"
-          exit 1
-        }
+      mapfile -t FASTFOOD_TEST_MODULES < <(find "${FASTFOOD_TEST_ROOT}" -type f -name '*.Ui.System.Tests.dll' ! -path '*/ref/*' -print)
+      if [ "${#FASTFOOD_TEST_MODULES[@]}" -ne 1 ]; then
+        echo "Expected exactly one UI system-test module, found ${#FASTFOOD_TEST_MODULES[@]}." >&2
+        printf '%s\n' "${FASTFOOD_TEST_MODULES[@]}" >&2
+        exit 1
+      fi
+      FASTFOOD_TEST_MODULE="${FASTFOOD_TEST_MODULES[0]#"${FASTFOOD_TEST_ROOT}/"}"
 
-        Write-Host "Found playwright.ps1 at: $($scriptPath.FullName)"
-        Write-Host "Installing Playwright browsers..."
-        & $scriptPath.FullName install
-    env:
-      PLAYWRIGHT_BROWSERS_PATH: '$(Agent.TempDirectory)/ms-playwright'
+      FASTFOOD_TEST_ARGUMENTS=(
+        test
+        --test-modules "${FASTFOOD_TEST_MODULE}"
+        --root-directory "${FASTFOOD_TEST_ROOT}"
+        --minimum-expected-tests 1
+        --results-directory "${FASTFOOD_RESULTS_DIRECTORY}"
+        --report-trx
+        --report-trx-filename=system_tests.trx
+      )
+      if [ -n "${FASTFOOD_TEST_FILTER}" ]; then
+        FASTFOOD_TEST_ARGUMENTS+=("--filter-query=${FASTFOOD_TEST_FILTER}")
+      fi
 
-  # Run system tests
-  - task: DotNetCoreCLI@2
+      dotnet "${FASTFOOD_TEST_ARGUMENTS[@]}"
     displayName: '${{ parameters.displayName }}'
-    inputs:
-      command: test
-      projects: '$(Pipeline.Workspace)/${{ parameters.pipelineResourceAlias }}/${{ parameters.artifactName }}/**/*.Ui.System.Tests.dll'
-      ${{ if ne(parameters.testFilter, '') }}:
-        arguments: '--logger trx --filter "${{ parameters.testFilter }}"'
-      ${{ else }}:
-        arguments: '--logger trx'
+    workingDirectory: '$(Pipeline.Workspace)/${{ parameters.pipelineResourceAlias }}/${{ parameters.artifactName }}'
     env:
+      FASTFOOD_TEST_FILTER: '${{ parameters.testFilter }}'
       # Test configuration URLs
       TEST_POS_URL: 'https://${{ parameters.posUrl }}'
       TEST_KITCHEN_URL: 'https://${{ parameters.kitchenUrl }}'
@@ -114,7 +118,7 @@ steps:
       CI: 'true'
       # Video output directory
       VIDEO_OUTPUT_DIR: '$(Agent.TempDirectory)/Videos'
-      PLAYWRIGHT_BROWSERS_PATH: '$(Agent.TempDirectory)/ms-playwright'
+      PLAYWRIGHT_BROWSERS_PATH: '/ms-playwright'
 
   # Capture test outcome for downstream steps (e.g. PR status)
   - bash: echo "##vso[task.setvariable variable=SystemTestsState]succeeded"
@@ -125,14 +129,19 @@ steps:
     displayName: 'Record test outcome (failed)'
     condition: failed()
 
-  # Publish test results
-  # - task: PublishTestResults@2
-  #   displayName: 'Publish Test Results'
-  #   inputs:
-  #     testResultsFiles: '$(Agent.TempDirectory)/*.trx'
-  #     testRunTitle: '${{ parameters.displayName }}'
-  #     mergeTestResults: true
-  #   condition: always()
+  # Publish test results explicitly; this keeps result handling visible and
+  # deterministic instead of relying on DotNetCoreCLI's VSTest integration.
+  - task: PublishTestResults@2
+    displayName: 'Publish System Test Results'
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: 'VSTest'
+      testResultsFiles: '**/*.trx'
+      searchFolder: '$(Agent.TempDirectory)/SystemTestResults'
+      testRunTitle: '${{ parameters.displayName }}'
+      mergeTestResults: true
+      failTaskOnFailedTests: true
+      failTaskOnMissingResultsFile: true
 
   # Publish video recordings
   - pwsh: |

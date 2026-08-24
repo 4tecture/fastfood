@@ -18,6 +18,9 @@ resources:
   - container: worker
     image: $(azureContainerRegistry)/fastfood-buildenv:$(NetCoreSdkVersion)
     endpoint: 4taksDemoAcr
+  - container: playwright
+    image: $(azureContainerRegistry)/fastfood-buildenv-playwright:$(NetCoreSdkVersion)
+    endpoint: 4taksDemoAcr
 
 pool:
   vmImage: 'ubuntu-24.04'
@@ -112,7 +115,7 @@ stages:
           jobName: 'deploy'
       - template: deploy/job-verifyprdeployment.yml
         parameters:
-          container: worker
+          container: playwright
           serviceName: '$(serviceName)'
           displayName: 'Run System Tests for PR $(pullRequestId)'
           pullRequestId: '$(pullRequestId)'

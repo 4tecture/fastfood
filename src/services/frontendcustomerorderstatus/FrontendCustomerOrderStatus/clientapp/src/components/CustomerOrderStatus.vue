@@ -23,10 +23,18 @@ const visibleFinishedOrders = computed(() => {
   const start = activeReadyPage.value * pageSizes.value.ready;
   return ordersFinished.value.slice(start, start + pageSizes.value.ready);
 });
+const preparationColumnCount = computed(() => Math.max(
+  1,
+  Math.min(visiblePreparationOrders.value.length, pageSizes.value.preparing <= 4 ? 2 : 3),
+));
+const readyColumnCount = computed(() => Math.max(
+  1,
+  Math.min(visibleFinishedOrders.value.length, pageSizes.value.ready <= 4 ? 2 : 4),
+));
 
 function updatePageSizes() {
   if (window.innerWidth <= 520) pageSizes.value = { preparing: 2, ready: 2 };
-  else if (window.innerWidth <= 800) pageSizes.value = { preparing: 4, ready: 4 };
+  else if (window.innerWidth <= 1024) pageSizes.value = { preparing: 4, ready: 4 };
   else pageSizes.value = { preparing: 6, ready: 8 };
 }
 
@@ -84,6 +92,7 @@ onUnmounted(() => {
         </div>
         <ul
           class="order-grid order-grid--preparing"
+          :style="{ '--order-columns': preparationColumnCount }"
           aria-live="polite"
           data-testid="preparation-orders-list">
           <li
@@ -115,6 +124,7 @@ onUnmounted(() => {
         </div>
         <ul
           class="order-grid order-grid--ready"
+          :style="{ '--order-columns': readyColumnCount }"
           aria-live="polite"
           data-testid="finished-orders-list">
           <li
@@ -213,6 +223,7 @@ onUnmounted(() => {
 }
 
 .order-zone {
+  container-type: inline-size;
   min-width: 0;
   overflow: hidden;
   padding: clamp(2rem, 4vw, 4rem);
@@ -284,26 +295,21 @@ ul {
 
 .order-grid {
   display: grid;
+  grid-template-columns: repeat(var(--order-columns), minmax(0, 1fr));
   align-content: start;
   gap: clamp(0.75rem, 1.5vw, 1.5rem);
 }
 
-.order-grid--preparing {
-  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-}
-
-.order-grid--ready {
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-}
-
 .order-token {
   display: flex;
-  min-height: clamp(5rem, 12vh, 8rem);
+  min-width: 0;
+  min-height: clamp(7rem, 16vh, 10rem);
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  padding-inline: clamp(0.75rem, 2cqw, 1.5rem);
   border-radius: 14px;
-  font-size: clamp(2.25rem, 5vw, 5.5rem);
+  font-size: clamp(2.75rem, 7cqw, 5.5rem);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
@@ -317,7 +323,7 @@ ul {
 }
 
 .order-token--ready {
-  min-height: clamp(6.5rem, 15vh, 10rem);
+  min-height: clamp(7.5rem, 18vh, 11rem);
   background: var(--ff-accent);
   color: #ffffff;
   box-shadow: 0 10px 24px rgba(111, 39, 15, 0.2);

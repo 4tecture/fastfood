@@ -1,5 +1,5 @@
 # Use the official ASP.NET Core runtime as a parent image
-FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS build
 
 # Expose port 8080 for the application
 EXPOSE 8080
@@ -17,21 +17,24 @@ RUN dotnet build "services/finance/FinanceService.Unit.Tests/FinanceService.Unit
 RUN dotnet publish "services/finance/FinanceService/FinanceService.csproj" -c Release -o /app/publish --no-restore
 
 FROM build AS test
-# Accept a build ID as an argument to label the test results; defaults to "localbuild".
-ARG BUILDID=localbuild
-# Label the container with the build ID for test results traceability.
-LABEL testresults=${BUILDID}
 
 # Execute tests for FinanceService.Unit.Tests with code coverage.
-RUN dotnet test services/finance/FinanceService.Unit.Tests/FinanceService.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
-    --logger "trx;LogFileName=test_results_financeservice.trx" \
-    --collect:"XPlat Code Coverage"
+RUN dotnet test --project services/finance/FinanceService.Unit.Tests/FinanceService.Unit.Tests.csproj --no-build -c Release --results-directory /testresults \
+    --report-trx --report-trx-filename=test_results_financeservice.trx \
+    --coverlet --coverlet-file-prefix=financeservice --coverlet-output-format=cobertura
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.10-noble-chiseled-extra AS final
+FROM scratch AS test-results
+COPY --from=test /testresults /
+
+FROM test AS publish
+# Reuse the runtime payload published in the build stage; the inheritance from
+# test keeps the final image gated on successful unit tests without rebuilding.
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.11-noble-chiseled-extra AS final
 
 WORKDIR /app
 
-COPY --from=build /app/publish .
+COPY --from=publish /app/publish .
 EXPOSE 8080
 USER $APP_UID
 

@@ -6,7 +6,15 @@
   - Run the script [BaseImage/run.sh](BaseImage/run.sh) which uses the [BaseImage/Dockerfile](BaseImage/Dockerfile)
 - Run the container
   ```
-  docker run -it --rm -p 8080:8080 --name demohardening financeservice-demo-hardening
+  docker run --rm --name demohardening \
+    --publish 127.0.0.1:8080:8080 \
+    --read-only \
+    --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+    --cap-drop ALL \
+    --security-opt no-new-privileges \
+    --env FeatureManagement__UseInMemoryDatabase=true \
+    --env HealthChecks__CheckDapr=false \
+    financeservice-demo-hardening
   ```
 - Verify that the container is running
   - Open the URL [http://localhost:8080/healthz](http://localhost:8080/healthz)
@@ -18,7 +26,15 @@
   - Run the script [Chiseled/run.sh](Chiseled/run.sh) which uses the [Chiseled/Dockerfile](Chiseled/Dockerfile)
 - Run the container
   ```
-  docker run -it --rm -p 8080:8080 --name demochiseled financeservice-demo-hardening-chiseled
+  docker run --rm --name demochiseled \
+    --publish 127.0.0.1:8080:8080 \
+    --read-only \
+    --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+    --cap-drop ALL \
+    --security-opt no-new-privileges \
+    --env FeatureManagement__UseInMemoryDatabase=true \
+    --env HealthChecks__CheckDapr=false \
+    financeservice-demo-hardening-chiseled
   ```
 - Verify that the container is running
   - Open the URL [http://localhost:8080/healthz](http://localhost:8080/healthz)

@@ -2,7 +2,7 @@
 # Stage 1: Build Stage
 # -------------------------------
 # Use the official .NET SDK image to build the application.
-FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS build
 
 # Set the working directory in the build container.
 WORKDIR /src
@@ -25,7 +25,7 @@ RUN find /app/publish -type d -exec chmod 755 {} \; && \
 # Stage 2: Runtime (Final) Stage
 # -------------------------------
 # Use the official ASP.NET Core chiseled runtime image for the final container.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.10-noble-chiseled-extra AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.11-noble-chiseled-extra AS runtime
 
 # Set the working directory to /app.
 WORKDIR /app

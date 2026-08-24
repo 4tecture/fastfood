@@ -1,5 +1,5 @@
 # Use the official ASP.NET Core runtime as a parent image
-FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.400 AS build
 
 # Expose port 8080 for the application
 EXPOSE 8080
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
     dotnet publish "services/finance/FinanceService/FinanceService.csproj" -c Release -o /app/publish --no-restore
 
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.10-noble-chiseled-extra AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.11-noble-chiseled-extra AS base
 
 WORKDIR /app
 

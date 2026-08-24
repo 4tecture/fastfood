@@ -28,6 +28,8 @@ database:
   useInMemoryDatabase: false
   existingSecret: ""
   createSecret: false
+migration:
+  enabled: true
 workloadIdentity:
   enabled: true
   provider: "Azure"

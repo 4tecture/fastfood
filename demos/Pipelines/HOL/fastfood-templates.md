@@ -11,7 +11,7 @@ The current implementation intentionally demonstrates these controls:
 - BuildKit secrets for authenticated NuGet restores; credentials never become
   image layers or build arguments.
 - committed NuGet lock files and `--locked-mode` restores;
-- unit-test and Cobertura results extracted from a disposable build target;
+- unit-test and Cobertura results exported directly from a scratch BuildKit target;
 - a unique build-number image tag, with no mutable `latest` publication;
 - BuildKit SBOM and SLSA provenance attestations;
 - a published `image-metadata` artifact containing the registry digest;
@@ -25,6 +25,11 @@ Open `pipelines/build/step-buildandpublishdockerimage.yml`. Its public inputs
 are the Dockerfile, build context, registry service connection, repository,
 build identity, optional NuGet feeds, and optional artifact-producing Docker
 targets.
+
+Each service Dockerfile publishes its runtime payload once, runs tests in a
+dependent stage, exposes evidence through `test-results`, and makes `final`
+inherit the tested graph. The release build therefore reuses the tested payload
+instead of invoking `dotnet publish` a second time.
 
 A service job passes one or more images through the `dockerImages` collection:
 
@@ -55,9 +60,7 @@ A service job passes one or more images through the `dockerImages` collection:
           --build-arg IMAGE_NET_ASPNET_VERSION=$(netCoreAspNetVersion)
           --build-arg IMAGE_NET_SDK_VERSION=$(netCoreSdkVersion)
         publishArtifacts:
-          - dockerfileTarget: test
-            imageLabel: testresults
-            directoryToCopy: /testresults
+          - dockerfileTarget: test-results
             artifactName: testresults
             publishType: testResults
 ```
@@ -70,7 +73,7 @@ promoted by the pipeline—not just the HTTP entry point.
 
 Run the CI pipeline and inspect its artifacts:
 
-1. `testresults` contains `.trx` files and `coverage.cobertura.xml`.
+1. `testresults` contains `.trx` files and timestamped `*.coverage.cobertura.*.xml` reports.
 2. `image-metadata/<repository>.json` contains `containerimage.digest` and
    BuildKit attestation metadata.
 3. The Helm artifact contains the packaged chart and environment values.
@@ -135,9 +138,10 @@ The deployment job downloads the chart artifact and invokes
       vmImage: ubuntu-24.04
 ```
 
-The Helm step uses `--atomic --wait --cleanup-on-fail`, a bounded timeout, and
-history retention. A failed readiness probe therefore rolls the release back
-instead of leaving a half-deployed workload.
+The Helm step selects the equivalent rollback flag for Helm 3 or 4 and combines
+it with `--wait`, `--wait-for-jobs`, `--cleanup-on-fail`, a bounded timeout, and
+history retention. A failed readiness probe or migration Job therefore rolls
+the release back instead of leaving a half-deployed workload.
 
 ## 5. Promote by digest
 

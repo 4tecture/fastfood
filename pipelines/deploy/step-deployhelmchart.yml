@@ -118,12 +118,12 @@ steps:
 
         case "${BASH_REMATCH[1]}" in
           3)
-            FASTFOOD_HELM_SAFETY_ARGS='--atomic --wait'
+            FASTFOOD_HELM_SAFETY_ARGS='--atomic --wait --wait-for-jobs'
             ;;
           4)
             # Helm 4 replaced --atomic and its legacy waiter avoids the watcher
             # regression that can leave healthy Deployments reported InProgress.
-            FASTFOOD_HELM_SAFETY_ARGS='--rollback-on-failure --wait=legacy'
+            FASTFOOD_HELM_SAFETY_ARGS='--rollback-on-failure --wait=legacy --wait-for-jobs'
             ;;
           *)
             echo "Unsupported Helm version: ${FASTFOOD_HELM_VERSION}" >&2

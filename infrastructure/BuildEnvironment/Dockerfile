@@ -1,4 +1,4 @@
-ARG NET_CORE_SDK_VERSION=10.0.302
+ARG NET_CORE_SDK_VERSION=10.0.400
 ARG NODE_VERSION=24.19.0
 ARG POWERSHELL_VERSION=7.6.4
 ARG KUBECTL_VERSION=1.35.7
@@ -89,17 +89,6 @@ RUN set -eux; arch="${TARGETARCH:-amd64}"; \
     grep " cosign-linux-${arch}$" cosign_checksums.txt | sha256sum --check; \
     install -o root -g root -m 0755 "cosign-linux-${arch}" /usr/local/bin/cosign; \
     rm "cosign-linux-${arch}" cosign_checksums.txt
-
-# Install Playwright via npm (aligns with project dependencies)
-RUN npm install -g playwright@1.61.0
-
-# Pre-install Playwright Chromium browser (most commonly used for headless testing)
-# This ensures browsers are available in CI/CD without runtime downloads
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN npx playwright install chromium --with-deps
-
-# Set environment variable for Playwright to skip browser download during restore
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 # Intentionally keep the CI worker image on the root default. Azure Pipelines
 # initializes container jobs by creating its UID and sudo group in /etc.

@@ -12,24 +12,24 @@ function BuildAndPush-DockerImage {
 
     Write-Output "Building Docker image $imageName ..."
     $buildid = [guid]::NewGuid().ToString()
-    docker build -f "$($dockerfileDir)/Dockerfile" --build-arg BUILDID=$($buildid) --target test .
-    if ($?) {
-        Write-Output "Test stage was successfully run in $imageName ..."
-       
-        # Ensure the test results directory exists
-        $testResultsDir = "./TestResults/$imageName/$buildid/"
-        if (-not (Test-Path -Path $testResultsDir)) {
-            New-Item -ItemType Directory -Path $testResultsDir | Out-Null
+    $dockerfile = Join-Path $dockerfileDir "Dockerfile"
+    $dockerfileContent = Get-Content -Path $dockerfile -Raw
+
+    if ($dockerfileContent -match '(?m)^FROM\s+scratch\s+AS\s+test-results\s*$') {
+        $safeImageName = $imageName -replace '[^A-Za-z0-9_.-]', '-'
+        $testResultsDir = Join-Path "./TestResults" "$safeImageName/$buildid"
+        New-Item -ItemType Directory -Path $testResultsDir -Force | Out-Null
+
+        docker buildx build --file $dockerfile --target test-results --output "type=local,dest=$testResultsDir" .
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to export test results for $imageName"
         }
-        
-        $id=docker images --filter "label=testresults=$($buildid)" -q | Select-Object -First 1
-        docker create --name testcontainer-$buildid $id
-        docker cp testcontainer-$($buildid):/testresults ./TestResults/$imageName/$buildid/
-        docker rm testcontainer-$($buildid)
-        
-        
-        # Get all *.trx files from the test results directory
-        $trxFiles = Get-ChildItem -Path "./TestResults/$imageName/$buildid/testresults/" -Filter *.trx
+
+        $trxFiles = Get-ChildItem -Path $testResultsDir -Filter *.trx -Recurse
+        $coverageFiles = Get-ChildItem -Path $testResultsDir -Filter *.coverage.cobertura.*.xml -Recurse
+        if ($trxFiles.Count -eq 0 -or $coverageFiles.Count -eq 0) {
+            throw "Expected TRX and Cobertura evidence was not exported for $imageName"
+        }
 
         foreach ($trxFile in $trxFiles) {
             Write-Output "Reading test results from $($trxFile.FullName) ..."
@@ -46,21 +46,18 @@ function BuildAndPush-DockerImage {
 
             # Write an error if any tests failed
             if ($failed -gt 0) {
-                Write-Error "There are $failed failing tests in $($trxFile.Name)"
+                throw "There are $failed failing tests in $($trxFile.Name)"
             }
         }
-        
-    } else {
-        Write-Error "Failed to run test stage in $imageName"
     }
-    
-    docker build -t $imageName -f "$($dockerfileDir)/Dockerfile" --target final .
 
-    if ($?) {
+    docker buildx build --load --tag $imageName --file $dockerfile --target final .
+
+    if ($LASTEXITCODE -eq 0) {
         Write-Output "Pushing Docker image $imageName ..."
         #docker push $imageName
 
-        if ($?) {
+        if ($LASTEXITCODE -eq 0) {
             Write-Output "Successfully pushed $imageName"
         } else {
             Write-Error "Failed to push $imageName"
@@ -70,8 +67,8 @@ function BuildAndPush-DockerImage {
     }
 }
 
-# Get all directories containing a Dockerfile
-$dockerfileDirs = Get-ChildItem -Recurse -Filter Dockerfile | Select-Object -ExpandProperty DirectoryName
+# Get all service directories containing a Dockerfile.
+$dockerfileDirs = Get-ChildItem -Path "./services" -Recurse -Filter Dockerfile | Select-Object -ExpandProperty DirectoryName
 
 foreach ($dir in $dockerfileDirs) {
     $projectName = (Split-Path -Leaf $dir).ToLower()

@@ -26,8 +26,28 @@ kubectl label namespace "$NAMESPACE" \
   pod-security.kubernetes.io/warn=restricted --overwrite
 
 helm lint "$CHART" --values "$SCRIPT_DIR/values.training.yaml"
+
+HELM_VERSION="$(helm version --short)"
+if [[ ! "$HELM_VERSION" =~ ^v?([0-9]+) ]]; then
+  echo "Unable to parse Helm version: $HELM_VERSION" >&2
+  exit 1
+fi
+
+case "${BASH_REMATCH[1]}" in
+  3)
+    HELM_SAFETY_ARGS=(--atomic --wait --wait-for-jobs)
+    ;;
+  4)
+    HELM_SAFETY_ARGS=(--rollback-on-failure --wait=legacy --wait-for-jobs)
+    ;;
+  *)
+    echo "Unsupported Helm version: $HELM_VERSION" >&2
+    exit 1
+    ;;
+esac
+
 helm upgrade --install financeservice "$CHART" \
   --namespace "$NAMESPACE" \
   --values "$SCRIPT_DIR/values.training.yaml" \
-  --atomic --wait --timeout 5m
+  "${HELM_SAFETY_ARGS[@]}" --timeout 5m
 helm test financeservice --namespace "$NAMESPACE" --logs
