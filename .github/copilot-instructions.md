@@ -37,13 +37,20 @@ dotnet restore src/FastFoodDelivery.sln --locked-mode
 dotnet build src/FastFoodDelivery.sln --configuration Release --no-restore
 
 # Focused order unit tests
-dotnet test src/services/order/OrderService.Unit.Tests/OrderService.Unit.Tests.csproj
+dotnet test --project src/services/order/OrderService.Unit.Tests/OrderService.Unit.Tests.csproj \
+  --configuration Release --no-restore --zero-tests-policy strict
 
 # C# Playwright UI system tests (requires the running stack)
 cd src/systemtests/FastFood.Ui.System.Tests
 bash ./setup.sh
-dotnet test
+cd ../../..
+dotnet test --project src/systemtests/FastFood.Ui.System.Tests/FastFood.Ui.System.Tests.csproj \
+  --configuration Release --no-restore --zero-tests-policy strict
 ```
+
+`global.json` selects .NET 10 Microsoft.Testing.Platform. Use `dotnet test --project ...` and
+never use the legacy `dotnet test -- --help` probe. Detailed filtering and full Compose rebuild
+commands live in the task-specific bugfix and Playwright skills.
 
 Local applications:
 

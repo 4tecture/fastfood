@@ -36,18 +36,21 @@ esac
   exit 2
 }
 
-az boards work-item show \
-  --organization "$organization" \
-  --id "$work_item_id" \
-  --query id \
-  --output tsv >/dev/null
-
 temporary_directory="$(mktemp -d)"
 trap 'rm -rf "$temporary_directory"' EXIT
 auth_config="$temporary_directory/curl-auth.conf"
 upload_response="$temporary_directory/upload.json"
 patch_body="$temporary_directory/patch.json"
 patch_response="$temporary_directory/work-item.json"
+work_item_before="$temporary_directory/work-item-before.json"
+
+az boards work-item show \
+  --organization "$organization" \
+  --id "$work_item_id" \
+  --expand fields \
+  --output json > "$work_item_before"
+
+existing_repro_steps="$(jq -r '.fields["Microsoft.VSTS.TCM.ReproSteps"] // ""' "$work_item_before")"
 
 access_token="$(az account get-access-token \
   --resource "$azure_devops_resource" \
@@ -79,10 +82,15 @@ upload_status="$(curl --silent --show-error \
 }
 
 attachment_url="$(jq -er '.url' "$upload_response")"
+embedded_repro_steps="${existing_repro_steps}<p><strong>Screenshot evidence</strong></p><p><img src=\"${attachment_url}\" alt=\"Reproduction screenshot\" /></p>"
 jq -n \
   --arg url "$attachment_url" \
   --arg comment "$comment" \
-  '[{"op":"add","path":"/relations/-","value":{"rel":"AttachedFile","url":$url,"attributes":{"comment":$comment}}}]' \
+  --arg reproSteps "$embedded_repro_steps" \
+  '[
+    {"op":"add","path":"/relations/-","value":{"rel":"AttachedFile","url":$url,"attributes":{"comment":$comment}}},
+    {"op":"add","path":"/fields/Microsoft.VSTS.TCM.ReproSteps","value":$reproSteps}
+  ]' \
   > "$patch_body"
 
 patch_endpoint="${organization}/${encoded_project}/_apis/wit/workitems/${work_item_id}?api-version=7.1"
@@ -96,9 +104,17 @@ patch_status="$(curl --silent --show-error \
   "$patch_endpoint")"
 
 [[ "$patch_status" =~ ^2 ]] || {
-  echo "Attachment was uploaded but linking it to work item $work_item_id failed with HTTP $patch_status." >&2
+  echo "Attachment was uploaded but linking and embedding it in work item $work_item_id failed with HTTP $patch_status." >&2
   jq -r '.message? // empty' "$patch_response" >&2 || true
   exit 1
 }
 
-echo "Attached $(basename "$screenshot_path") to ${organization}/${project}/_workitems/edit/${work_item_id}"
+jq -e --arg url "$attachment_url" '
+  any(.relations[]?; .rel == "AttachedFile" and .url == $url) and
+  (.fields["Microsoft.VSTS.TCM.ReproSteps"] | contains($url))
+' "$patch_response" >/dev/null || {
+  echo "Work item response did not confirm both the attachment and inline image." >&2
+  exit 1
+}
+
+echo "Attached and embedded $(basename "$screenshot_path") in ${organization}/${project}/_workitems/edit/${work_item_id}"

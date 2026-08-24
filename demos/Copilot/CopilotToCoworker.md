@@ -84,7 +84,9 @@ Human review checkpoint:
 - The screenshot exists under `output/playwright/` and contains no sensitive data.
 - Observations and hypotheses are clearly separated.
 - Demo mode skipped duplicate detection and the Bug has the `copilot-demo` tag.
-- The Bug contains steps, expected/actual behavior, impact, evidence, and acceptance criteria.
+- The Bug contains steps, expected/actual behavior, impact, prominent labeled analysis, and
+  acceptance criteria.
+- The clearest screenshot is both attached and rendered inline in the reproduction steps.
 - `git status --short` is empty.
 
 Open the Bug URL and briefly review it. Then click **Review and hand off to developer**. The
@@ -95,7 +97,8 @@ handoff is prefilled but deliberately not submitted; review it before sending.
 The **Bugfix Developer** should:
 
 1. Read the Bug and evidence.
-2. Create `bugfix/{work-item-id}-cart-quantity` from `demo-coworkers`.
+2. Derive a concise symptom slug from the Bug title and create
+   `bugfix/{work-item-id}-{symptom-slug}` from `demo-coworkers`.
 3. Add and run a unit regression that fails before production changes.
 4. Discover every applicable order-processing implementation.
 5. Implement the smallest compatible change.
@@ -105,20 +108,22 @@ Human review checkpoint:
 
 ```bash
 git status --short --branch
-git diff --stat demo-coworkers...HEAD
-git diff --check demo-coworkers...HEAD
+review_merge_base="$(git merge-base demo-coworkers HEAD)"
+git diff --stat "$review_merge_base"
+git diff --check "$review_merge_base"
 ```
 
 Require the agent to show both failing-before and passing-after evidence. Confirm it did not
 push or create a PR. Then click **Review and add UI regression coverage** and review the prefilled
 prompt before sending.
 
-If the stack needs the changed order containers rebuilt:
+After production changes, recreate the complete topology so every application, sidecar, and
+dependency uses a coherent build:
 
 ```bash
 cd src
-docker compose up -d --build orderservice orderserviceactors
-docker compose restart orderservice-dapr orderserviceactors-dapr
+docker compose down
+docker compose up -d --build
 docker compose ps
 curl --fail http://127.0.0.1:8901/health/ready
 cd ..
@@ -142,13 +147,33 @@ Human review checkpoint:
 - The focused test passes against the rebuilt stack.
 - The agent reports the exact command and result.
 
+Run the generated cart regression visibly for the audience. The zero-test guard prevents a
+renamed or missing test from producing a false-green result:
+
+```bash
+HEADED=1 dotnet test \
+  --project src/systemtests/FastFood.Ui.System.Tests/FastFood.Ui.System.Tests.csproj \
+  --configuration Release --no-restore --no-ansi --zero-tests-policy strict \
+  --filter-method "*Cart*"
+```
+
 Click **Review and hand off for local change review**.
 
 ## Demo 4: peer review
 
-The **Local Change Reviewer** reads `demo-coworkers...HEAD` and must not edit files. Review its
-findings before accepting them. If findings exist, click **Send findings back to developer**;
-otherwise retain its `ready for PR` verdict as part of the delivery evidence.
+The **Local Change Reviewer** compares the entire working tree with the merge base of
+`demo-coworkers`, including committed, staged, unstaged, and untracked files. It must not edit
+anything and returns the enterprise report with findings, acceptance-criteria traceability,
+verification, residual risks, and verdict.
+
+If the first pass returns `changes required`, click **Address findings (changes required only)**.
+After the correction, use **Add or verify UI regression coverage** only when user-visible behavior,
+selectors, waits, or acceptance criteria changed; otherwise use **Re-review addressed findings**
+directly. Existing adequate UI coverage should be verified without unnecessary edits.
+
+The second reviewer pass is the final automated pass: `ready for PR` and
+`ready with residual risk` exit the loop. Remaining findings produce `human decision required`;
+do not start a third correction cycle during the demo.
 
 If time remains, push and open an Azure Repos PR without merging it:
 
@@ -196,7 +221,10 @@ If the application becomes unhealthy, preserve logs first:
 cd src
 docker compose ps
 docker compose logs --tail=200 orderservice orderserviceactors
-docker compose up -d orderservice orderserviceactors orderservice-dapr orderserviceactors-dapr
+docker compose down
+docker compose up -d --build
+docker compose ps
+curl --fail http://127.0.0.1:8901/health/ready
 ```
 
 If an MCP write fails, keep the generated report in the chat, show the evidence, and continue

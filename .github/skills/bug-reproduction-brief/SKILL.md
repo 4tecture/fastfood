@@ -22,12 +22,13 @@ retrieved 2026-08-24.
 
 1. Restate the report as one observable expected/actual claim.
 2. Define the shortest customer journey that can prove or disprove the claim.
-3. Start with a new order/cart and record the exact input values.
+3. Start with clean application state appropriate to the report and record the exact input
+   values. For POS behavior, this normally means a new order/cart.
 4. Exercise the journey using VS Code built-in browser tools. Read the page after each
    state-changing action instead of relying on timing.
 5. Capture a PNG showing the actual result. Use focused `runPlaywrightCode` only when a
    file-backed screenshot is needed, and save it below `output/playwright/`.
-6. Reset to a new order/cart and repeat the same journey once more.
+6. Reset to an equivalent clean state and repeat the same journey once more.
 7. Record both outcomes separately. A single transient occurrence is inconclusive.
 
 ## Diagnosis boundary

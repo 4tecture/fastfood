@@ -10,7 +10,7 @@ target: vscode
 handoffs:
   - label: Review and hand off to developer
     agent: Bugfix Developer
-    prompt: Use the verified work item and evidence from this conversation. Create a local bugfix branch from demo-coworkers, add a failing regression test, implement the smallest architecture-complete fix, and verify it. Do not push or create a PR.
+    prompt: Use the verified work item and evidence from this conversation. Create a descriptively named local bugfix branch from demo-coworkers, add a failing regression test, implement the smallest architecture-complete fix, and verify it. Do not push or create a PR.
     send: false
 ---
 
@@ -32,7 +32,7 @@ is verified, follow exactly one reporting skill based on the requested tracker:
 3. Use VS Code built-in browser tools for the customer journey. Prefer accessible
    elements and use focused `runPlaywrightCode` only when the normal browser tools are
    insufficient or a screenshot must be written to `output/playwright/`.
-4. Reproduce the same behavior twice from a clean order/cart state.
+4. Reproduce the same behavior twice from a clean, equivalent application state.
 5. Record expected and actual behavior, exact steps, environment, visible impact,
    timestamps, URLs, and screenshot paths.
 6. Source inspection is allowed only to form explicitly labeled hypotheses. Do not state

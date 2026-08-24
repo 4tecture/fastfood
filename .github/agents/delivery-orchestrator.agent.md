@@ -24,7 +24,11 @@ Coordinate the four specialist coworkers; do not perform their work yourself.
 5. Delegate durable regression coverage to **UI Test Engineer**.
 6. Continue only when the focused C# Playwright scenario passes without fixed delays.
 7. Delegate the complete diff to **Local Change Reviewer**.
-8. If actionable findings exist, send them to Bugfix Developer and repeat test and review.
+8. If the first review requires changes, send only its actionable findings to Bugfix Developer.
+   Route through UI Test Engineer only when the correction changes user-visible behavior or the
+   UI automation contract; otherwise return directly to Local Change Reviewer.
+9. Finish when the reviewer returns `ready for PR` or `ready with residual risk`. If the second
+   review still requires changes, stop with `human decision required`; never start a third pass.
 
 Stop and report a blocker whenever a stage lacks required evidence. Never push, create or merge
 a PR, close a work item, or bypass a human approval. Return a compact delivery dossier with every

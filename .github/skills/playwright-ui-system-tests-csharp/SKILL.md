@@ -14,10 +14,9 @@ and the existing FastFood Page Object implementation, retrieved 2026-08-24.
 
 ## Prerequisites
 
-1. Confirm `npx` is available before suggesting Playwright CLI fallback commands.
-2. Inspect `OrderWorkflowTests.cs`, `Helpers/BrowserHelper.cs`, `Base/PlaywrightTestBase.cs`,
+1. Inspect `OrderWorkflowTests.cs`, `Helpers/BrowserHelper.cs`, `Base/PlaywrightTestBase.cs`,
    `Configuration/TestConfiguration.cs`, and the relevant Page Objects.
-3. With the full stack running, install browsers once with:
+2. With the full stack running, install browsers once with:
 
 ```bash
 cd src/systemtests/FastFood.Ui.System.Tests
@@ -38,21 +37,36 @@ bash ./setup.sh
 
 ## Cart aggregation regression
 
-Load [the cart scenario](references/cart-aggregation-scenario.md) for the duplicate-product
-defect. The important Page Object contract is that `AddProductAsync` completes when the requested
-cart state is observable. A wait based only on line-count growth is invalid when an existing line
-may change quantity.
+Only when the work item concerns duplicate-product aggregation, load
+[the cart scenario](references/cart-aggregation-scenario.md). The important Page Object contract
+is that `AddProductAsync` completes when the requested cart state is observable. A wait based only
+on line-count growth is invalid when an existing line may change quantity.
+
+Before editing, compare the acceptance criteria with existing coverage. If the scenario is already
+durably covered and the latest changes did not alter selectors, waits, or user-visible behavior,
+make no edits and rerun the focused test.
 
 ## Validation
 
-Run the narrowest filter first, then the complete UI project when time permits:
+`global.json` selects the .NET 10 Microsoft.Testing.Platform runner. Use `--project` and native
+xUnit v3 filters; do not use `dotnet test -- --help` or legacy positional-project syntax.
+
+Run the narrowest fully qualified test method first, then the complete UI project when time permits:
 
 ```bash
-dotnet test src/systemtests/FastFood.Ui.System.Tests/FastFood.Ui.System.Tests.csproj \
-  --filter "FullyQualifiedName~Cart"
+dotnet test \
+  --project src/systemtests/FastFood.Ui.System.Tests/FastFood.Ui.System.Tests.csproj \
+  --configuration Release --no-restore --no-ansi --zero-tests-policy strict \
+  --filter-method "FastFood.Ui.System.Tests.ClassName.MethodName"
 
-dotnet test src/systemtests/FastFood.Ui.System.Tests/FastFood.Ui.System.Tests.csproj
+dotnet test \
+  --project src/systemtests/FastFood.Ui.System.Tests/FastFood.Ui.System.Tests.csproj \
+  --configuration Release --no-restore --no-ansi --zero-tests-policy strict
 ```
+
+For an audience-visible local run, prefix the focused command with `HEADED=1`. If production code
+or a production selector changed after the last rebuild, first recreate the full stack with
+`docker compose down` and `docker compose up -d --build` from `src`.
 
 Report the command, duration, result, browser artifacts, and any test not run. Never claim a test
 passed from source inspection alone.

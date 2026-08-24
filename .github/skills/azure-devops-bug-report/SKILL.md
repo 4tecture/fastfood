@@ -27,17 +27,24 @@ Defaults:
 4. Create the Bug with Azure DevOps MCP when its write tool is available. Otherwise use
    `az boards work-item create` with the explicit organization and project.
 5. Use a concise customer-visible title without an implementation guess.
-6. Populate supported fields with: description/impact, environment, numbered reproduction steps,
-   expected behavior, actual behavior, evidence from both runs, labeled hypotheses, and testable
-   acceptance criteria.
-7. Attach the PNG after the Bug exists:
+6. Populate the native Bug fields deliberately:
+   - `System.Description`: customer impact, environment, evidence summary for both runs, and an
+     `Analysis` section containing separately labeled observations, hypotheses with confidence,
+   and unknowns. Never present a hypothesis as a confirmed root cause.
+   - `Microsoft.VSTS.TCM.ReproSteps`: preconditions, numbered actions, expected behavior, actual
+     behavior, and the repeated-run result. The attachment helper appends the rendered screenshot.
+   - `Microsoft.VSTS.Common.AcceptanceCriteria`: testable completion criteria.
+7. Attach the clearest PNG after the Bug exists. The helper both links the file and embeds it at
+   the end of the reproduction steps so it is visible without opening the attachment pane:
 
 ```bash
 .github/skills/azure-devops-bug-report/scripts/attach-work-item-screenshot.sh \
   WORK_ITEM_ID output/playwright/SCREENSHOT.png
 ```
 
-8. Read the created Bug back and verify its type, title, content, attachment relation, ID, and URL.
+8. Read the created Bug back and verify its type, title, description/analysis, reproduction steps,
+   acceptance criteria, attachment relation, inline image reference, `copilot-demo` tag when
+   requested, ID, and URL.
 
 Do not expose authentication tokens, include secrets in evidence, assign an engineer, change
 state, or create a PR. Return the Bug ID and browser URL.
